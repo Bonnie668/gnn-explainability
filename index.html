@@ -1,0 +1,1363 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Explainability in Graph Neural Networks · 中英双语对照</title>
+<link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="%230f766e"/><g stroke="%23f7f5f0" stroke-width="4" fill="none"><circle cx="18" cy="18" r="7" fill="%230f766e"/><circle cx="46" cy="16" r="7" fill="%230f766e"/><circle cx="42" cy="44" r="7" fill="%230f766e"/><circle cx="16" cy="46" r="7" fill="%230f766e"/><path d="M23 22 L40 19 M44 23 L38 39 M35 44 L22 42 M18 25 L17 39"/></g></svg>'>
+<link rel="stylesheet" href="https://miaoda.feishu.cn/fonts/css2?family=Noto+Serif+SC:wght@400;600;700;900&family=Noto+Sans+SC:wght@400;500;700&display=swap">
+<style>
+  :root{
+    --paper:#f7f5f0; --paper-2:#efece3; --card:#fdfcf9;
+    --ink:#262a2e; --ink-2:#4c525a; --ink-3:#7a8089;
+    --accent:#0f766e; --accent-deep:#0b5a54; --accent-soft:#e2efed;
+    --rule:#d8d2c4; --rule-soft:#e6e1d5;
+    --serif:"Noto Serif SC","Source Serif 4",Georgia,"Songti SC","SimSun",serif;
+    --sans:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:var(--serif); font-size:17px; line-height:1.85;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--accent); text-decoration:none;}
+  a:hover{text-decoration:underline;}
+
+  /* ===== Top bar ===== */
+  .topbar{
+    position:sticky; top:0; z-index:60;
+    background:rgba(247,245,240,.94); backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--rule-soft);
+    display:flex; align-items:center; gap:14px;
+    padding:10px 22px;
+  }
+  .topbar .brand{
+    font-family:var(--sans); font-weight:700; font-size:14px;
+    letter-spacing:.02em; color:var(--ink); white-space:nowrap;
+    display:flex; align-items:center; gap:8px;
+  }
+  .topbar .brand svg{flex:0 0 auto;}
+  .topbar .spacer{flex:1;}
+  .seg{
+    display:inline-flex; border:1px solid var(--rule); border-radius:999px;
+    background:var(--card); overflow:hidden;
+  }
+  .seg button{
+    font-family:var(--sans); font-size:13px; color:var(--ink-2);
+    background:transparent; border:none; padding:7px 14px; cursor:pointer;
+    transition:background .15s,color .15s;
+  }
+  .seg button + button{border-left:1px solid var(--rule-soft);}
+  .seg button.on{background:var(--accent); color:#fff; font-weight:500;}
+  .tocbtn{
+    font-family:var(--sans); font-size:13px; color:var(--ink-2);
+    background:var(--card); border:1px solid var(--rule); border-radius:999px;
+    padding:7px 14px; cursor:pointer;
+  }
+  .tocbtn:hover{border-color:var(--accent); color:var(--accent);}
+
+  /* ===== TOC drawer ===== */
+  .tocmask{position:fixed; inset:0; background:rgba(30,34,38,.35); z-index:70; opacity:0; pointer-events:none; transition:opacity .2s;}
+  .tocmask.show{opacity:1; pointer-events:auto;}
+  .tocdrawer{
+    position:fixed; top:0; left:0; bottom:0; width:320px; max-width:86vw;
+    background:var(--card); z-index:71; transform:translateX(-105%); transition:transform .25s;
+    overflow-y:auto; padding:22px 24px 40px; box-shadow:2px 0 24px rgba(30,34,38,.12);
+  }
+  .tocdrawer.show{transform:translateX(0);}
+  .tocdrawer h3{
+    font-family:var(--sans); font-size:13px; color:var(--ink-3); letter-spacing:.18em;
+    margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid var(--rule-soft);
+  }
+  .tocdrawer a{
+    display:block; font-family:var(--sans); font-size:14px; color:var(--ink);
+    padding:7px 10px; border-radius:8px; margin-bottom:2px;
+  }
+  .tocdrawer a:hover{background:var(--accent-soft); color:var(--accent-deep); text-decoration:none;}
+  .tocdrawer a.sub{padding-left:26px; font-size:13px; color:var(--ink-2);}
+
+  /* ===== Layout ===== */
+  .page{max-width:1120px; margin:0 auto; padding:0 26px 90px;}
+
+  /* ===== Header ===== */
+  .dochead{
+    padding:58px 8px 30px; text-align:center;
+    border-bottom:3px double var(--rule);
+  }
+  .preprint{
+    display:inline-block; font-family:var(--sans); font-size:11px; font-weight:700;
+    letter-spacing:.3em; color:var(--accent-deep); border:1px solid var(--accent);
+    border-radius:999px; padding:4px 14px; margin-bottom:22px;
+  }
+  .dochead h1{font-size:30px; line-height:1.4; font-weight:900; margin-bottom:6px;}
+  .dochead .zh-title{font-size:24px; font-weight:700; color:var(--ink-2); margin-bottom:20px;}
+  .authors-en{font-size:16px; color:var(--ink);}
+  .authors-zh{font-size:14.5px; color:var(--ink-3); margin-top:4px;}
+  .affil{font-size:13.5px; color:var(--ink-3); margin-top:14px; font-family:var(--sans);}
+  .arxiv{font-size:12.5px; color:var(--ink-3); margin-top:6px; font-family:var(--sans); letter-spacing:.05em;}
+  .arxiv a{color:var(--accent);}
+
+  /* ===== Section ===== */
+  section.block{padding:44px 0 6px; border-bottom:1px solid var(--rule-soft);}
+  .secnum{font-family:var(--sans); font-size:11px; font-weight:700; letter-spacing:.2em; color:var(--accent); display:block; margin-bottom:4px;}
+  h2.sec{
+    font-size:22px; font-weight:900; line-height:1.5; margin-bottom:18px;
+  }
+  h2.sec .zh{display:block; font-size:16px; font-weight:600; color:var(--ink-2); margin-top:2px;}
+  h3.sub{
+    font-size:17px; font-weight:700; margin:30px 0 10px; padding-left:12px;
+    border-left:3px solid var(--accent); line-height:1.5;
+  }
+  h3.sub .zh{font-size:14.5px; font-weight:500; color:var(--ink-2); display:block;}
+  h4.sub4{font-size:15.5px; font-weight:700; margin:22px 0 8px; font-family:var(--sans);}
+  h4.sub4 .zh{font-size:13.5px; color:var(--ink-2); font-weight:500; display:block;}
+
+  /* ===== Bilingual pairs ===== */
+  .pair{
+    display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    column-gap:0; margin-bottom:16px;
+  }
+  .pair > div{padding:2px 0;}
+  .pair .en{padding-right:26px; text-align:justify;}
+  .pair .zh{
+    padding-left:26px; border-left:1px solid var(--rule);
+    text-align:justify; color:var(--ink);
+  }
+  .pair .en .lead, .pair .zh .lead{font-weight:600;}
+  .pair p + p{margin-top:12px;}
+  .quote-note{
+    background:var(--paper-2); border-radius:10px; padding:12px 16px;
+    font-size:15px; margin-bottom:16px;
+  }
+
+  /* ===== Figure blocks ===== */
+  figure.blockfig{margin:26px 0 6px;}
+  figure.blockfig .figbody{
+    background:var(--card); border:1px solid var(--rule-soft); border-radius:14px;
+    padding:20px 18px 14px;
+  }
+  figcaption{
+    font-size:13px; color:var(--ink-2); margin-top:10px; line-height:1.7;
+    padding:0 4px;
+  }
+  figcaption .cap-zh{display:block; color:var(--ink); margin-top:2px;}
+
+  /* taxonomy diagram */
+  .tax-root{
+    display:flex; justify-content:center; margin-bottom:6px;
+  }
+  .tax-root .node{
+    font-family:var(--sans); font-weight:700; font-size:14px;
+    background:var(--accent); color:#fff; border-radius:999px; padding:9px 22px;
+  }
+  .tax-branches{
+    display:grid; grid-template-columns:1fr 1fr; gap:22px; margin-top:14px;
+  }
+  .tax-branch{border:1px solid var(--rule); border-radius:12px; padding:14px 14px 10px; background:var(--card);}
+  .tax-branch h5{
+    font-family:var(--sans); font-size:13px; font-weight:700; text-align:center;
+    padding-bottom:9px; margin-bottom:10px; border-bottom:1px dashed var(--rule);
+  }
+  .tax-branch.instance h5{color:var(--accent-deep);}
+  .tax-branch.model h5{color:#8a5a12;}
+  .tax-cols{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px;}
+  .tax-col{background:var(--paper-2); border-radius:8px; padding:8px;}
+  .tax-col b{
+    display:block; font-family:var(--sans); font-size:11.5px; font-weight:700;
+    text-align:center; margin-bottom:5px; color:var(--ink-2);
+  }
+  .tax-col i{display:block; font-style:normal; font-family:var(--sans); font-size:11px; color:var(--ink-3); text-align:center; line-height:1.5;}
+  .tax-col.model-col{grid-column:1 / -1;}
+
+  /* pipeline diagrams */
+  .pipe{display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:8px 10px;}
+  .pipe .pnode{
+    font-family:var(--sans); font-size:12.5px; color:var(--ink);
+    border:1px solid var(--rule); background:var(--paper-2);
+    border-radius:10px; padding:8px 13px; text-align:center; line-height:1.5;
+  }
+  .pipe .pnode.hl{border-color:var(--accent); background:var(--accent-soft); font-weight:600;}
+  .pipe .pnode.root{background:var(--accent); color:#fff; border-color:var(--accent); font-weight:700;}
+  .pipe .pnode.small{font-size:11.5px; padding:6px 10px;}
+  .pipe .arrow{color:var(--accent-deep); font-weight:700; font-size:16px; flex:0 0 auto;}
+  .pipe .arrow.ret{color:var(--ink-3);}
+  .pipe-row{display:flex; flex-direction:column; align-items:center; gap:10px; margin:4px 0;}
+  .pipe-stack{display:flex; flex-direction:column; gap:6px; align-items:stretch;}
+  .pipe-stack .pnode{width:100%;}
+
+  /* ===== Formulas ===== */
+  .formula{
+    position:relative; background:var(--card); border:1px solid var(--rule-soft);
+    border-radius:12px; padding:16px 22px; margin:16px 0;
+  }
+  .formula .flabel{font-family:var(--sans); font-size:12px; color:var(--ink-3); margin-bottom:8px;}
+  .formula .feq{
+    font-size:19px; text-align:center; letter-spacing:.02em;
+    font-family:Georgia,"Times New Roman",var(--serif);
+    overflow-x:auto; white-space:nowrap;
+  }
+  .formula .fnum{position:absolute; right:14px; top:12px; font-family:var(--sans); font-size:12px; color:var(--ink-3);}
+  .formula .fdesc{font-size:13.5px; color:var(--ink-2); margin-top:8px;}
+
+  /* ===== Tables ===== */
+  .tablewrap{overflow-x:auto; margin:18px 0 6px; background:var(--card); border:1px solid var(--rule-soft); border-radius:14px;}
+  table.tbl{border-collapse:collapse; width:100%; table-layout:fixed; font-family:var(--sans); font-size:13px;}
+  table.tbl th, table.tbl td{padding:9px 10px; border-bottom:1px solid var(--rule-soft); text-align:center; vertical-align:middle; line-height:1.5;}
+  table.tbl thead th{background:var(--paper-2); font-weight:700; color:var(--ink);}
+  table.tbl thead th .zh{display:block; font-size:11px; font-weight:500; color:var(--ink-2);}
+  table.tbl tbody tr:last-child td{border-bottom:none;}
+  table.tbl tbody td:first-child{font-weight:600; text-align:left;}
+  table.tbl tr.subhead td{background:var(--accent-soft); font-weight:700; font-size:12px; color:var(--accent-deep); letter-spacing:.04em;}
+  table.tbl .na{color:var(--ink-3); font-style:italic;}
+  .tblnote{font-size:13px; color:var(--ink-2); padding:12px 16px 14px; line-height:1.75; border-top:1px dashed var(--rule-soft);}
+  .tblnote .zh{color:var(--ink);}
+
+  /* ===== Reference list ===== */
+  details.refs{
+    margin:26px 0; border:1px solid var(--rule); border-radius:14px;
+    background:var(--card); overflow:hidden;
+  }
+  details.refs summary{
+    cursor:pointer; padding:16px 20px; font-family:var(--sans); font-weight:700; font-size:15px;
+    color:var(--ink); list-style:none; display:flex; align-items:center; gap:10px;
+  }
+  details.refs summary::-webkit-details-marker{display:none;}
+  details.refs summary .arrow{transition:transform .2s; color:var(--accent);}
+  details.refs[open] summary .arrow{transform:rotate(90deg);}
+  details.refs summary small{font-weight:400; color:var(--ink-3); font-size:12.5px;}
+  .refs-list{padding:0 20px 18px; column-count:2; column-gap:34px; font-size:12.5px; line-height:1.7; color:var(--ink-2);}
+  .refs-list li{break-inside:avoid; margin-bottom:8px; list-style:none; counter-increment:ref;}
+  .refs-list li::before{content:"[" counter(ref) "]"; color:var(--accent); font-weight:700; margin-right:4px;}
+  .refs-list ol{counter-reset:ref;}
+
+  /* ===== Footer ===== */
+  .docfoot{
+    margin-top:46px; padding:24px 8px 0; border-top:1px solid var(--rule);
+    font-size:12.5px; color:var(--ink-3); font-family:var(--sans); line-height:1.9;
+  }
+
+  /* ===== View mode ===== */
+  body[data-mode="zh"] .pair .en,
+  body[data-mode="en"] .pair .zh{display:none;}
+  body[data-mode="zh"] .en-only{display:none;}
+  body[data-mode="en"] .fdesc .zh{display:none;}
+  body[data-mode="zh"] .pair{grid-template-columns:1fr;}
+  body[data-mode="zh"] .pair .zh{padding-left:0; border-left:none;}
+  body[data-mode="en"] .pair{grid-template-columns:1fr;}
+  body[data-mode="en"] .pair .en{padding-right:0;}
+
+  /* ===== Responsive ===== */
+  @media (max-width:880px){
+    body{font-size:16px;}
+    .dochead{padding:40px 4px 24px;}
+    .dochead h1{font-size:23px;}
+    .dochead .zh-title{font-size:19px;}
+    .pair{grid-template-columns:1fr;}
+    .pair .en{padding-right:0; border-bottom:1px dashed var(--rule); padding-bottom:10px; margin-bottom:6px;}
+    .pair .zh{padding-left:0; border-left:none;}
+    .tax-branches{grid-template-columns:1fr;}
+    .tax-cols{grid-template-columns:repeat(2,minmax(0,1fr));}
+    .refs-list{column-count:1;}
+    .topbar{padding:8px 12px; gap:8px;}
+    .seg button{padding:6px 9px; font-size:12px;}
+    .brand .brand-text{display:none;}
+    .page{padding:0 16px 70px;}
+  }
+  @media print{
+    .topbar,.tocmask,.tocdrawer{display:none;}
+    body{background:#fff;}
+  }
+</style>
+</head>
+<body data-mode="both">
+
+<!-- ===== 顶栏 ===== -->
+<header class="topbar">
+  <div class="brand">
+    <svg width="22" height="22" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#0f766e"/><g stroke="#f7f5f0" stroke-width="5" fill="none"><circle cx="18" cy="18" r="7" fill="#0f766e"/><circle cx="46" cy="16" r="7" fill="#0f766e"/><circle cx="42" cy="44" r="7" fill="#0f766e"/><circle cx="16" cy="46" r="7" fill="#0f766e"/><path d="M23 22 L40 19 M44 23 L38 39 M35 44 L22 42 M18 25 L17 39"/></g></svg>
+    <span class="brand-text">GNN 可解释性综述 · 中英双语对照</span>
+  </div>
+  <div class="spacer"></div>
+  <div class="seg" id="seg" role="group" aria-label="显示模式">
+    <button data-mode="both" class="on">中英对照</button>
+    <button data-mode="zh">仅中文</button>
+    <button data-mode="en">English</button>
+  </div>
+  <button class="tocbtn" id="tocbtn">目录</button>
+</header>
+
+<div class="tocmask" id="tocmask"></div>
+<nav class="tocdrawer" id="tocdrawer" aria-label="目录">
+  <h3>目 录 · CONTENTS</h3>
+  <a href="#sec-abstract">摘要 Abstract</a>
+  <a href="#sec-1">1 引言 Introduction</a>
+  <a href="#sec-2">2 挑战 The Challenges</a>
+  <a href="#sec-3">3 分类法概述 Overview of the Taxonomy</a>
+  <a href="#sec-4">4 实例级解释 Instance-Level Explanations</a>
+  <a class="sub" href="#sec-4-1">4.1 梯度/特征方法</a>
+  <a class="sub" href="#sec-4-2">4.2 扰动方法</a>
+  <a class="sub" href="#sec-4-3">4.3 代理方法</a>
+  <a class="sub" href="#sec-4-4">4.4 分解方法</a>
+  <a href="#sec-5">5 模型级解释 Model-Level Explanations</a>
+  <a href="#sec-6">6 综合对比分析 Comparative Analysis</a>
+  <a href="#sec-7">7 评估 Evaluations</a>
+  <a class="sub" href="#sec-7-1">7.1 数据集</a>
+  <a class="sub" href="#sec-7-2">7.2 评估指标</a>
+  <a href="#sec-8">8 实验研究 Experimental Studies</a>
+  <a href="#sec-9">9 开源库 An Open-Source Library</a>
+  <a href="#sec-10">10 结论 Conclusion</a>
+  <a href="#sec-ack">致谢 Acknowledgments</a>
+  <a href="#sec-refs">参考文献 References</a>
+</nav>
+
+<main class="page">
+
+  <!-- ===== 文档头 ===== -->
+  <header class="dochead" id="top">
+    <span class="preprint">PREPRINT · 预印本</span>
+    <h1>Explainability in Graph Neural Networks: A Taxonomic Survey</h1>
+    <div class="zh-title">图神经网络中的可解释性：一项分类学综述</div>
+    <div class="authors-en">Hao Yuan, Haiyang Yu, Shurui Gui, and Shuiwang Ji, Senior Member, IEEE</div>
+    <div class="authors-zh">袁昊（Hao Yuan）、于海洋（Haiyang Yu）、桂书瑞（Shurui Gui）、季水旺（Shuiwang Ji），IEEE 高级会员</div>
+    <div class="affil">Department of Computer Science and Engineering, Texas A&amp;M University, College Station, TX 77843, USA<br>美国得克萨斯 A&amp;M 大学计算机科学与工程系</div>
+    <div class="arxiv">arXiv:2012.15445v3 [cs.LG] · 1 Jul 2022 · <a href="https://arxiv.org/abs/2012.15445" target="_blank" rel="noopener">arxiv.org/abs/2012.15445</a></div>
+  </header>
+
+  <!-- ===== 摘要 ===== -->
+  <section class="block" id="sec-abstract">
+    <h2 class="sec">Abstract<span class="zh">摘要</span></h2>
+    <div class="pair">
+      <div class="en"><p>Deep learning methods are achieving ever-increasing performance on many artificial intelligence tasks. A major limitation of deep models is that they are not amenable to interpretability. This limitation can be circumvented by developing post hoc techniques to explain predictions, giving rise to the area of explainability. Recently, explainability of deep models on images and texts has achieved significant progress. In the area of graph data, graph neural networks (GNNs) and their explainability are experiencing rapid developments. However, there is neither a unified treatment of GNN explainability methods, nor a standard benchmark and testbed for evaluations. In this survey, we provide a unified and taxonomic view of current GNN explainability methods. Our unified and taxonomic treatments of this subject shed light on the commonalities and differences of existing methods and set the stage for further methodological developments. To facilitate evaluations, we provide a testbed for GNN explainability, including datasets, common algorithms and evaluation metrics. Furthermore, we conduct comprehensive experiments to compare and analyze the performance of many techniques. Altogether, this work provides a unified methodological treatment of GNN explainability and a standardized testbed for evaluations.</p></div>
+      <div class="zh"><p>深度学习方法在众多人工智能任务上正取得越来越高的性能。深度模型的一个主要局限在于它们难以进行解释。这一局限可以通过开发事后（post hoc）技术来解释预测加以规避，由此催生了可解释性（explainability）这一研究领域。近年来，图像与文本领域深度模型的可解释性已取得显著进展。在图数据领域，图神经网络（GNN）及其可解释性正经历快速发展。然而，目前既不存在对 GNN 可解释性方法的统一处理，也没有用于评估的标准基准与测试平台。在本综述中，我们对当前的 GNN 可解释性方法提供了统一且分类学的视角。我们对这一主题的统一与分类学处理，揭示了现有方法的共性与差异，并为进一步的方法论发展奠定了基础。为便于评估，我们提供了一个 GNN 可解释性测试平台，包括数据集、常用算法与评估指标。此外，我们开展了全面的实验，以比较和分析众多技术的性能。总而言之，本工作为 GNN 可解释性提供了统一的方法论处理，并为评估提供了标准化的测试平台。</p></div>
+    </div>
+    <div class="pair">
+      <div class="en"><p><strong>Index Terms</strong>—Graph analysis, graph neural networks, explainability, interpretability, taxonomy, evaluation, survey.</p></div>
+      <div class="zh"><p><strong>索引术语</strong>——图分析、图神经网络、可解释性（explainability）、可理解性（interpretability）、分类学（taxonomy）、评估（evaluation）、综述（survey）。</p></div>
+    </div>
+  </section>
+
+  <!-- ===== 1 引言 ===== -->
+  <section class="block" id="sec-1">
+    <span class="secnum">SECTION 1 · 第 1 节</span>
+    <h2 class="sec">Introduction<span class="zh">引言</span></h2>
+
+    <div class="pair">
+      <div class="en"><p>The developments of deep neural networks have revolutionized the fields of machine learning and artificial intelligence. Deep neural networks have achieved promising performance in many research tasks, such as computer vision <a href="#r1">[1]</a>, <a href="#r2">[2]</a>, natural language processing <a href="#r3">[3]</a>, and graph data analysis <a href="#r4">[4]</a>, <a href="#r5">[5]</a>. These facts motivate us to adopt deep learning methods for real-world applications <a href="#r6">[6]</a>–<a href="#r9">[9]</a> in interdisciplinary domains, such as finance, biology, and agriculture etc. However, since most deep models are developed without interpretability, they are treated as black-boxes. Without reasoning the underlying mechanisms behind the predictions, deep models cannot be fully trusted, which prevents their use in critical applications pertaining to fairness, privacy, and safety. In order to safely and trustfully deploy deep models, it is necessary to provide both accurate predictions and human-intelligible explanations, especially for users in interdisciplinary domains. These facts raise the need of developing explanation techniques to explain deep neural networks.</p></div>
+      <div class="zh"><p>深度神经网络的发展已彻底变革了机器学习和人工智能领域。深度神经网络在众多研究任务中取得了令人瞩目的性能，例如计算机视觉 <a href="#r1">[1]</a>、<a href="#r2">[2]</a>、自然语言处理 <a href="#r3">[3]</a> 以及图数据分析 <a href="#r4">[4]</a>、<a href="#r5">[5]</a>。这些事实促使我们在金融、生物、农业等跨学科领域的现实应用 <a href="#r6">[6]</a>–<a href="#r9">[9]</a> 中采用深度学习方法。然而，由于大多数深度模型在开发时并未考虑可理解性，它们被视为黑盒模型。如果不能推理预测背后的潜在机制，深度模型就无法被完全信任，这阻碍了它们在涉及公平、隐私和安全等关键应用中的使用。为了安全且可信地部署深度模型，有必要同时提供准确的预测和人类可理解的解释，尤其是面向跨学科领域的用户。这些事实提出了开发解释技术以解释深度神经网络的需求。</p></div>
+    </div>
+
+    <div class="pair">
+      <div class="en"><p>The explanation techniques of deep models generally study the underlying relationships behind the predictions of deep models. Several techniques are proposed to explain the deep models for image and text data <a href="#r10">[10]</a>–<a href="#r21">[21]</a>. These methods can provide input-independent explanations, such as studying the important scores for input features, or a high-level understanding of the general behaviors of deep models. For example, by studying the gradients or weights <a href="#r10">[10]</a>, <a href="#r11">[11]</a>, <a href="#r18">[18]</a>, we can analyze the sensitivity between the input features and the predictions. Existing approaches <a href="#r12">[12]</a>, <a href="#r13">[13]</a>, <a href="#r19">[19]</a> map hidden feature maps to the input space and highlight the important input features. In addition, by occluding different input features, we can observe and monitor the change of predictions to identify important features <a href="#r14">[14]</a>, <a href="#r15">[15]</a>. Meanwhile, several studies <a href="#r10">[10]</a>, <a href="#r16">[16]</a> focus on providing input-independent explanations, such as studying the input patterns that maximize the predicted score of a certain class. Furthermore, the meaning of hidden neurons is explored to understand the whole prediction procedure <a href="#r17">[17]</a>, <a href="#r22">[22]</a>. Recent survey works <a href="#r23">[23]</a>–<a href="#r26">[26]</a> provide good systematic reviews and taxonomies of these methods. However, these surveys only focus on the explanation methods for image and text domains and ignore the explainability of deep graph models.</p></div>
+      <div class="zh"><p>深度模型的解释技术通常研究深度模型预测背后的潜在关系。目前已提出多种技术来解释图像和文本数据的深度模型 <a href="#r10">[10]</a>–<a href="#r21">[21]</a>。这些方法可以提供与输入无关的解释，例如研究输入特征的重要性分数，或对深度模型总体行为的高层理解。例如，通过研究梯度或权重 <a href="#r10">[10]</a>、<a href="#r11">[11]</a>、<a href="#r18">[18]</a>，我们可以分析输入特征与预测之间的敏感性。现有方法 <a href="#r12">[12]</a>、<a href="#r13">[13]</a>、<a href="#r19">[19]</a> 将隐藏特征图映射到输入空间，并突出重要的输入特征。此外，通过遮挡不同的输入特征，我们可以观察并监测预测的变化，从而识别重要特征 <a href="#r14">[14]</a>、<a href="#r15">[15]</a>。与此同时，若干研究 <a href="#r10">[10]</a>、<a href="#r16">[16]</a> 专注于提供与输入无关的解释，例如研究能使某一类别预测得分最大化的输入模式。此外，还探索了隐藏神经元的含义，以理解整个预测过程 <a href="#r17">[17]</a>、<a href="#r22">[22]</a>。近期的综述工作 <a href="#r23">[23]</a>–<a href="#r26">[26]</a> 对这些方法进行了良好的系统性回顾与分类。然而，这些综述只关注图像和文本领域的解释方法，而忽略了深度图模型的可解释性。</p></div>
+    </div>
+
+    <div class="pair">
+      <div class="en"><p>Recently, Graph Neural Networks (GNNs) have become increasingly popular since many real-world data are represented as graphs, such as social networks, chemical molecules, and financial data <a href="#r27">[27]</a>, <a href="#r28">[28]</a>, <a href="#r29">[29]</a>. Several graph-related tasks are widely studied, such as node classification <a href="#r30">[30]</a>–<a href="#r32">[32]</a>, graph classification <a href="#r5">[5]</a>, <a href="#r33">[33]</a>, link prediction <a href="#r34">[34]</a>–<a href="#r36">[36]</a>. In addition, many advanced GNN operations are proposed to improve the performance, including graph convolution <a href="#r4">[4]</a>, <a href="#r37">[37]</a>, <a href="#r38">[38]</a>, graph attention <a href="#r39">[39]</a>, <a href="#r40">[40]</a>, and graph pooling <a href="#r41">[41]</a>–<a href="#r43">[43]</a>. However, compared with image and text domains, the explainability of graph models are less explored, which is critical for understanding deep graph neural networks. Recently, several approaches are proposed to explain the predictions of GNNs <a href="#r44">[44]</a>, such as XGNN <a href="#r45">[45]</a>, GNNExplainer <a href="#r46">[46]</a>, PGExplainer <a href="#r47">[47]</a>, and SubgraphX <a href="#r48">[48]</a>, etc. These methods are developed from different angles and provide different levels of explanations. In addition, it is still lacking standard datasets and metrics for evaluating the explanation results. Hence, it raises the need of a systematic survey covering the methods and evaluations of GNN explanation techniques.</p></div>
+      <div class="zh"><p>近年来，由于许多现实世界数据都以图的形式表示，例如社交网络、化学分子和金融数据 <a href="#r27">[27]</a>、<a href="#r28">[28]</a>、<a href="#r29">[29]</a>，图神经网络（GNN）变得越来越流行。若干与图相关的任务得到了广泛研究，例如节点分类 <a href="#r30">[30]</a>–<a href="#r32">[32]</a>、图分类 <a href="#r5">[5]</a>、<a href="#r33">[33]</a>、链接预测 <a href="#r34">[34]</a>–<a href="#r36">[36]</a>。此外，许多先进的 GNN 操作被提出以提高性能，包括图卷积 <a href="#r4">[4]</a>、<a href="#r37">[37]</a>、<a href="#r38">[38]</a>、图注意力 <a href="#r39">[39]</a>、<a href="#r40">[40]</a> 和图池化 <a href="#r41">[41]</a>–<a href="#r43">[43]</a>。然而，与图像和文本领域相比，图模型的可解释性研究较少，而这对于理解深度图神经网络至关重要。近年来，已提出多种方法来解释 GNN 的预测 <a href="#r44">[44]</a>，例如 XGNN <a href="#r45">[45]</a>、GNNExplainer <a href="#r46">[46]</a>、PGExplainer <a href="#r47">[47]</a> 和 SubgraphX <a href="#r48">[48]</a> 等。这些方法从不同角度出发，提供不同层次的解释。此外，目前仍缺乏用于评估解释结果的标准数据集和指标。因此，迫切需要一项涵盖 GNN 解释技术的方法与评估的系统性综述。</p></div>
+    </div>
+
+    <div class="pair">
+      <div class="en"><p>To this end, this survey provides a systematic study of different GNN explanation techniques. We aim at providing intuitive understanding and high-level insights of different methods so that researchers can choose proper directions to explore. The contributions of this work are summarized as below:</p></div>
+      <div class="zh"><p>为此，本综述对不同的 GNN 解释技术进行了系统性研究。我们旨在提供对不同方法的直观理解和高层洞察，以便研究者选择合适的方向进行探索。本工作的贡献总结如下：</p></div>
+    </div>
+
+    <div class="pair">
+      <div class="en">
+        <p>• This survey provides a systematic and comprehensive review of existing explanation techniques for deep graph models. To the best of our knowledge, this is the first and only survey work on such a topic.</p>
+        <p>• We propose a novel taxonomy of existing GNN explanation techniques. We conclude the key idea of each category and provide insightful analysis.</p>
+        <p>• We introduce each GNN explanation method in detail, including its methodology, advantages, drawbacks, and difference compared with other methods.</p>
+        <p>• We summarize the commonly employed datasets and evaluation metrics for GNN explanation tasks. We discuss their limitations and recommend several convincing metrics.</p>
+        <p>• We build three human-understandable datasets from the text domain by converting sentences to graphs. These datasets are now publicly available and can be directly used for GNN explanation tasks.</p>
+        <p>• We develop an open-source library for the GNN explanation research. In this library, we include the implementations of several existing techniques, commonly used datasets, and different evaluation metrics. It can be used to reproduce existing methods and develop new GNN explanation techniques.</p>
+        <p>• We conduct experiments to study and compare several explanation techniques. Our analysis can provide insights for new researchers about the development of the research field and baseline selections.</p>
+      </div>
+      <div class="zh">
+        <p>• 本综述对现有深度图模型解释技术进行了系统而全面的回顾。据我们所知，这是该主题上首部也是唯一一部综述工作。</p>
+        <p>• 我们提出了现有 GNN 解释技术的一种新分类法。我们总结了每个类别的核心思想并提供了有洞察力的分析。</p>
+        <p>• 我们详细介绍每一种 GNN 解释方法，包括其方法论、优势、缺点以及与其他方法的差异。</p>
+        <p>• 我们总结了 GNN 解释任务中常用的数据集和评估指标。我们讨论了它们的局限性，并推荐了几种有说服力的指标。</p>
+        <p>• 我们通过将句子转换为图，从文本领域构建了三个人类可理解的数据集。这些数据集现已公开可用，可直接用于 GNN 解释任务。</p>
+        <p>• 我们为 GNN 可解释性研究开发了一个开源库。该库包含若干现有技术的实现、常用数据集以及不同的评估指标。它可以用于复现现有方法并开发新的 GNN 解释技术。</p>
+        <p>• 我们开展了实验来研究和比较若干解释技术。我们的分析可以为新研究者提供关于该研究领域发展和基线选择的洞见。</p>
+      </div>
+    </div>
+
+    <h3 class="sub">Explainability versus Interpretability<span class="zh">可解释性（Explainability）与可理解性（Interpretability）之辨</span></h3>
+    <div class="pair">
+      <div class="en"><p>Explainable artificial intelligence is an emerging area of research, and the use of terminology is not completely standardized. In particular, the differences of the terms “explainability” and “interpretability” are not completely defined. In some studies, these two terms are used interchangeably <a href="#r29">[29]</a>, while in other studies some subtle differences have been made. In this work, we argue that these two terms should be differentiated. In particular, we follow the existing work <a href="#r49">[49]</a> to distinguish these two terms. We consider a model to be “interpretable” if the model itself can provide humanly understandable interpretations of its predictions. Note that such a model is no longer a black box to some extent. For example, a decision tree model is an “interpretable” one. Meanwhile, an “explainable” model implies that the model is still a black box whose predictions could potentially be understood by post hoc explanation techniques. We articulate such a difference with the hope that the community could eventually develop a standardized use of terminology as this field matures.</p></div>
+      <div class="zh"><p>可解释人工智能（Explainable AI）是一个新兴的研究领域，术语的使用尚未完全标准化。特别是，“explainability”（可解释性）与“interpretability”（可理解性）这两个术语的差异尚未被完全定义。在一些研究中，这两个术语可互换使用 <a href="#r29">[29]</a>，而在另一些研究中则存在细微差别。在本工作中，我们认为这两个术语应当加以区分。具体而言，我们遵循现有工作 <a href="#r49">[49]</a> 来区分这两个术语。如果一个模型本身能够对其预测提供人类可理解的理解，我们认为该模型是“可理解的”（interpretable）。注意，这样的模型在某种程度上不再是黑盒。例如，决策树模型就是“可理解的”模型。与此同时，“可解释的”（explainable）模型意味着该模型仍然是一个黑盒，其预测可能通过事后解释技术被理解。我们阐明这一区别，希望随着该领域的成熟，学界最终能够形成标准化的术语使用。</p></div>
+    </div>
+  </section>
+
+  <!-- ===== 2 挑战 ===== -->
+  <section class="block" id="sec-2">
+    <span class="secnum">SECTION 2 · 第 2 节</span>
+    <h2 class="sec">The Challenges<span class="zh">挑战</span></h2>
+    <div class="pair">
+      <div class="en"><p>Explaining deep graph models is an important but challenging task. In this section, we discuss the common challenges for explaining GNNs.</p></div>
+      <div class="zh"><p>解释深度图模型是一项重要但具有挑战性的任务。在本节中，我们讨论解释 GNN 时面临的常见挑战。</p></div>
+    </div>
+
+    <div class="pair">
+      <div class="en"><p>First, unlike images and texts, graphs are not grid-like data, which means there is no locality information and each node has different numbers of neighbors. Instead, graphs contain important topology information and are represented as feature matrices and adjacency matrices. To explain feature importance, we may directly extend the explanation methods for image data to graph data. However, the adjacency matrices represent the topology information and only contain discrete values. Then existing methods may not be suitable for obtaining high-quality explanations for GNNs. For example, input optimization methods <a href="#r10">[10]</a>, <a href="#r16">[16]</a> are popular to explain the general behaviors of image classifiers. It treats the input as trainable variables and optimizes the input via back-propagation to obtain abstract images to explain the model. However, the discrete adjacency matrices cannot be optimized in the same manner. In addition, several methods <a href="#r14">[14]</a>, <a href="#r50">[50]</a> learn soft masks to capture important image regions. However, applying soft masks to the adjacency matrices will destroy the discreteness property. Furthermore, graph nodes and edges contribute together to the final predictions of GNNs and the interactions between them are also important, which cannot be captured existing methods from image domain.</p></div>
+      <div class="zh"><p>首先，与图像和文本不同，图不是类网格（grid-like）数据，这意味着不存在局部性信息，且每个节点拥有不同数量的邻居。相反，图包含重要的拓扑信息，并以特征矩阵和邻接矩阵的形式表示。为了解释特征重要性，我们或许可以直接将图像数据的解释方法扩展到图数据。然而，邻接矩阵表示拓扑信息，且只包含离散值。这样一来，现有方法可能不适合为 GNN 获得高质量的解释。例如，输入优化方法 <a href="#r10">[10]</a>、<a href="#r16">[16]</a> 常用于解释图像分类器的总体行为。它将输入视为可训练变量，并通过反向传播优化输入以获得解释模型的抽象图像。然而，离散的邻接矩阵无法以同样的方式进行优化。此外，若干方法 <a href="#r14">[14]</a>、<a href="#r50">[50]</a> 学习软掩码（soft mask）来捕捉重要的图像区域。然而，将软掩码应用于邻接矩阵会破坏其离散性。再者，图节点和边共同决定 GNN 的最终预测，它们之间的交互也很重要，而来自图像领域的现有方法无法捕捉这一点。</p></div>
+    </div>
+
+    <div class="pair">
+      <div class="en"><p>In addition, for images and texts, we study the importance of each pixel or word. However, it is more important to study the structural information for graph data. First, the nodes in graphs may be unlabeled and the labels of the whole graphs are determined by graph structures. Then studying each node may be meaningless since those unlabeled nodes contain no semantic meaning. In addition, for graphs in biochemistry, neurobiology, ecology, and engineering, graph substructures are highly related to their functionalities <a href="#r51">[51]</a>. An example is network motifs, which can be considered as the building blocks of many complex networks <a href="#r52">[52]</a>, <a href="#r53">[53]</a>. Then such structural information should not be ignored in the explanation tasks. However, existing explanation methods from image domains cannot provide explanations regarding the structures. Next, for node classification tasks, the prediction of each node is determined by different message walks from its neighbors. Investigating such message walks is meaningful but challenging. None of the existing methods in the image domain can consider such walk information, which needs further explorations.</p></div>
+      <div class="zh"><p>此外，对于图像和文本，我们研究每个像素或单词的重要性。然而，对于图数据，研究结构信息更为重要。首先，图中的节点可能是无标签的，整个图的标签由图结构决定。那么研究每个节点可能没有意义，因为这些无标签节点不包含语义信息。此外，对于生物化学、神经生物学、生态学和工程领域的图，图子结构与其功能高度相关 <a href="#r51">[51]</a>。一个例子是网络模体（network motif），它可被视为许多复杂网络的构建单元 <a href="#r52">[52]</a>、<a href="#r53">[53]</a>。因此，在解释任务中不应忽略此类结构信息。然而，来自图像领域的现有解释方法无法提供关于结构的解释。其次，对于节点分类任务，每个节点的预测由来自其邻居的不同消息游走（message walk）决定。研究这些消息游走是有意义但具有挑战性的。图像领域的现有方法都无法考虑此类游走信息，这需要进一步的探索。</p></div>
+    </div>
+
+    <div class="pair">
+      <div class="en"><p>Furthermore, graph data are less intuitive than images and texts. To understand deep models, domain knowledge for the datasets is necessary. For images and texts, understanding the semantic meaning of input is simple and straightforward. For their explanations, humans can easily understand them even though the explanations are highly abstract. However, since graphs can represent complex data, such as molecules, social networks, and citation networks, it is challenging for humans to understand the meaning of graphs. In addition, in interdisciplinary areas such as chemistry and biology, there are many unsolved mysteries and the domain knowledge is still lacking. Hence, it is non-trivial to obtain human-understandable explanations for graph models, thus raising the need of standard datasets and evaluation metrics for explanation tasks.</p></div>
+      <div class="zh"><p>再者，图数据不如图像和文本直观。要理解深度模型，对数据集的领域知识是必要的。对于图像和文本，理解输入的语义意义简单而直接。对于它们的解释，即使解释高度抽象，人类也能轻松理解。然而，由于图可以表示分子、社交网络、引文网络等复杂数据，人类理解图的含义具有挑战性。此外，在化学和生物等跨学科领域，存在许多未解之谜，领域知识仍然缺乏。因此，为图模型获得人类可理解的解释并非易事，这引发了对用于解释任务的标准数据集和评估指标的需求。</p></div>
+    </div>
+  </section>
+
+  <!-- ===== 3 分类法概述 ===== -->
+  <section class="block" id="sec-3">
+    <span class="secnum">SECTION 3 · 第 3 节</span>
+    <h2 class="sec">An Overview of the Taxonomy<span class="zh">分类法概述</span></h2>
+
+    <div class="pair">
+      <div class="en"><p>Recently, several approaches are proposed to explain the predictions of deep graph models. These methods focus on different aspects of the graph models and provide different views to understand these models. They generally answer a few questions; some of these are, which input edge nodes are more important? which input nodes are more important? which features are more important? what graph patterns will maximize the prediction of a certain class? To better understand these methods, we provide a taxonomy of different explanation techniques for GNNs. The structure of our taxonomy is shown in Figure 1. Based on what types of explanations are provided, different techniques are categorized into two main classes: instance-level methods and model-level methods.</p></div>
+      <div class="zh"><p>近年来，已提出多种方法来解释深度图模型的预测。这些方法关注图模型的不同方面，并提供不同的视角来理解这些模型。它们通常回答几个问题，例如：哪些输入边/节点更重要？哪些输入节点更重要？哪些特征更重要？什么样的图模式能使某一类别的预测最大化？为了更好地理解这些方法，我们为 GNN 的不同解释技术提供了一种分类法。我们分类法的结构如图 1 所示。根据所提供的解释类型，不同技术被分为两大类：实例级方法和模型级方法。</p></div>
+    </div>
+
+    <div class="pair">
+      <div class="en"><p>First, instance-level methods provide input-dependent explanations for each input graph. Given an input graph, these explanations explain deep models by identifying important input features for its prediction. Based on how the importance scores are obtained, we categorize the methods into four different branches: gradients/features-based methods, perturbation-based methods, decomposition methods, and surrogate methods. Specifically, the gradients/features-based methods employ the gradients or the feature values to indicate the importance of different input features. In addition, perturbation-based methods monitor the change of prediction with respect to different input perturbations to study input importance scores. The decomposition methods first decompose the prediction scores, such as predicted probabilities, to the neurons in the last hidden layer. Then they back propagate such scores layer by layer until the input space and use such decomposed scores as the importance scores. Meanwhile, for a given input example, surrogate based methods first sample a dataset from the neighbors of the given example. Next, these methods fit a simple and interpretable model, such as the decision tree, to the sampled dataset. Then the explanations from the surrogate model are used to explain the original prediction. Second, model-level methods explain graph neural networks without respect to any specific input example. The input-independent explanations are high-level and explain general behaviors. Compared with instance-level methods, this direction is still less explored. The only existing model-level method is XGNN <a href="#r45">[45]</a>, which is based on graph generation.</p></div>
+      <div class="zh"><p>首先，实例级方法为每个输入图提供依赖于输入的解释。给定一个输入图，这些解释通过识别对其预测重要的输入特征来解释深度模型。根据重要性分数的获取方式，我们将这些方法分为四个分支：基于梯度/特征的方法、基于扰动的方法、分解方法和代理方法。具体来说，基于梯度/特征的方法利用梯度或特征值来指示不同输入特征的重要性。此外，基于扰动的方法监测预测相对于不同输入扰动的变化，以研究输入重要性分数。分解方法首先将预测分数（如预测概率）分解到最后一个隐藏层的神经元上，然后逐层反向传播这些分数直至输入空间，并将这些分解后的分数用作重要性分数。与此同时，对于给定的输入样本，基于代理的方法首先从该样本的邻居中采样一个数据集，然后用一个简单且可解释的模型（如决策树）拟合该数据集，最后用代理模型的解释来解释原始预测。其次，模型级方法在不针对任何特定输入样本的情况下解释图神经网络。与输入无关的解释是高层级的，解释模型的总体行为。与实例级方法相比，这一方向仍研究较少。唯一现有的模型级方法是基于图生成的 XGNN <a href="#r45">[45]</a>。</p></div>
+    </div>
+
+    <figure class="blockfig">
+      <div class="figbody">
+        <div class="tax-root"><span class="node">Graph Neural Network Explanations · 图神经网络解释</span></div>
+        <div class="tax-branches">
+          <div class="tax-branch instance">
+            <h5>Instance-level Explanations · 实例级解释</h5>
+            <div class="tax-cols">
+              <div class="tax-col"><b>Gradients / Features<br>梯度 / 特征</b><i>SA · Guided BP<br>CAM · Grad-CAM</i></div>
+              <div class="tax-col"><b>Perturbations<br>扰动</b><i>GNNExplainer · PGExplainer<br>GraphMask · Causal Screening<br>SubgraphX</i></div>
+              <div class="tax-col"><b>Decomposition<br>分解</b><i>LRP · Excitation BP<br>GNN-LRP</i></div>
+              <div class="tax-col"><b>Surrogate<br>代理</b><i>GraphLime · RelEx<br>PGM-Explainer</i></div>
+            </div>
+          </div>
+          <div class="tax-branch model">
+            <h5>Model-level Explanations · 模型级解释</h5>
+            <div class="tax-cols">
+              <div class="tax-col model-col"><b>Generation · 生成</b><i>XGNN</i></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <figcaption>Fig. 1. An overview of our proposed taxonomy. We categorize existing GNN explanation approaches into two branches: instance-level methods and model-level methods. For the instance-level methods, the gradients/features-based methods include SA [54], Guided BP [54], CAM [55], and Grad-CAM [55]; the perturbation-based methods are GNNExplainer [46], PGExplainer [47], ZORRO [56], GraphMask [57], Causal Screening [58], and SubgraphX [48]; the decomposition methods contain LRP [54], Excitation BP [65] and GNN-LRP [60]; the surrogate methods include GraphLime [61], RelEx [62], and PGM-Explainer [63]. For the model-level methods, the only existing approach is XGNN [45].<span class="cap-zh">图 1. 我们所提分类法的概览。我们将现有 GNN 解释方法分为两大分支：实例级方法和模型级方法。对于实例级方法，基于梯度/特征的方法包括 SA [54]、Guided BP [54]、CAM [55] 和 Grad-CAM [55]；基于扰动的方法包括 GNNExplainer [46]、PGExplainer [47]、ZORRO [56]、GraphMask [57]、Causal Screening [58] 和 SubgraphX [48]；分解方法包括 LRP [54]、Excitation BP [65] 和 GNN-LRP [60]；代理方法包括 GraphLime [61]、RelEx [62] 和 PGM-Explainer [63]。对于模型级方法，唯一现有的方法是 XGNN [45]。</span></figcaption>
+    </figure>
+
+    <div class="pair">
+      <div class="en"><p>Overall, these two categories of methods explain deep graph models from different views. Instance-level methods provide example-specific explanations while model-level explanations provide high-level insights and a generic level understanding. To verify and trust deep graph models, it requires human supervision to check the explanations. For instance-level methods, more human supervisions are needed since experts need to explore the explanations for different input graphs. For model-level methods, since the explanations are high-level, less human supervisions are involved. Furthermore, the explanations of instance-level methods are based on real input instances so that they are easier to understand. However, the explanations for model-level methods may not be human-intelligible since the obtained graph patterns may not even exist in the real-world. Overall, these two types of methods can be combined together to better understand deep graph models, and hence it is necessary to investigate both of them.</p></div>
+      <div class="zh"><p>总体而言，这两类方法从不同视角解释深度图模型。实例级方法提供针对特定样本的解释，而模型级解释提供高层洞察和通用层面的理解。为了验证并信任深度图模型，需要人工监督来检查解释。对于实例级方法，需要更多的人工监督，因为专家需要为不同的输入图探索解释。对于模型级方法，由于解释是高层级的，涉及的人工监督较少。此外，实例级方法的解释基于真实的输入实例，因此更容易理解。然而，模型级方法的解释可能无法被人类理解，因为获得的图模式甚至可能不存在于现实世界中。总体而言，这两类方法可以结合起来以更好地理解深度图模型，因此有必要对两者都进行研究。</p></div>
+    </div>
+  </section>
+
+  <!-- ===== 4 实例级解释 ===== -->
+  <section class="block" id="sec-4">
+    <span class="secnum">SECTION 4 · 第 4 节</span>
+    <h2 class="sec">Instance-Level Explanations<span class="zh">实例级解释</span></h2>
+    <div class="pair">
+      <div class="en"><p>We start our explorations by introducing the instance-level methods for GNN explanations. In this section, we will discuss the motivations, methodologies, advantages, limitations of each category.</p></div>
+      <div class="zh"><p>我们从介绍用于 GNN 解释的实例级方法开始探索。在本节中，我们将讨论每一类的动机、方法论、优势和局限性。</p></div>
+    </div>
+
+    <h3 class="sub" id="sec-4-1">4.1 Gradients/Features-Based Methods<span class="zh">4.1 基于梯度/特征的方法</span></h3>
+    <div class="pair">
+      <div class="en"><p>First, we introduce the gradients/features-based methods for explaining deep graph models.</p></div>
+      <div class="zh"><p>首先，我们介绍用于解释深度图模型的基于梯度/特征的方法。</p></div>
+    </div>
+
+    <h4 class="sub4">4.1.1 A unified view<span class="zh">4.1.1 统一视角</span></h4>
+    <div class="pair">
+      <div class="en"><p>Employing gradients or features to explain the deep models is the most straightforward solution, which is widely used in image and text tasks. The key idea is to use the gradients or hidden feature map values as the approximations of input importance. Specifically, gradients-based methods compute the gradients of target prediction with respect to input features by back-propagation. Meanwhile, features-based methods map the hidden features to the input space via interpolation to measure importance scores. Generally, in such methods, larger gradients or feature values indicate higher importance. Note that both gradients and hidden features are highly related to the model parameters, then such explanations can reflect the information contained in the model. Since these methods are simple and general, they can be easily extended to the graph domain. Recently, several methods have been proposed to explain graph neural networks, including SA, Guided BP, CAM, and Grad-CAM. The key difference among these methods lies in the procedure of gradient back-propagation and how different hidden feature maps are combined.</p></div>
+      <div class="zh"><p>使用梯度或特征来解释深度模型是最直接的方案，在图像和文本任务中应用广泛。其核心思想是利用梯度或隐藏特征图的值作为输入重要性的近似。具体而言，基于梯度的方法通过反向传播计算目标预测相对于输入特征的梯度。同时，基于特征的方法通过插值将隐藏特征映射到输入空间来衡量重要性分数。通常，在这类方法中，梯度或特征值越大表示重要性越高。注意，梯度和隐藏特征都与模型参数高度相关，因此这类解释可以反映模型所含的信息。由于这些方法简单且通用，可以轻松扩展到图领域。近年来，已提出多种方法解释图神经网络，包括 SA、Guided BP、CAM 和 Grad-CAM。这些方法的关键差异在于梯度反向传播的过程以及不同隐藏特征图的组合方式。</p></div>
+    </div>
+
+    <h4 class="sub4">4.1.2 Methods<span class="zh">4.1.2 方法</span></h4>
+
+    <div class="pair">
+      <div class="en"><p><strong>SA</strong> directly employs the squared values of gradients as the importance scores of different input features. It can be directly computed by back-propagation, which is the same as network training but the target is input features instead of model parameters. Note that the input features can be graph nodes, edges, or node features. It assumes that higher absolute gradient values indicate the corresponding input features are more important. While it is simple and efficient, it has several additional limitations. First, SA can only reflect the sensitivity between input and output, which cannot accurately show the importance. In addition, it also suffers from saturation problems. In the saturation regions of the model, where the model output changes minimally with respect to any input change, the gradients can hardly reflect the contributions of inputs.</p></div>
+      <div class="zh"><p><strong>SA</strong>（敏感性分析，Sensitivity Analysis）直接使用梯度的平方值作为不同输入特征的重要性分数。它可以直接通过反向传播计算，这与网络训练相同，只是目标为输入特征而非模型参数。注意，输入特征可以是图节点、边或节点特征。它假设梯度绝对值越大，对应的输入特征越重要。虽然它简单高效，但也有若干额外局限。首先，SA 只能反映输入与输出之间的敏感性，无法准确显示重要性。此外，它还受饱和问题影响。在模型的饱和区域，即模型输出对任何输入变化都几乎不改变时，梯度难以反映输入的贡献。</p></div>
+    </div>
+
+    <div class="pair">
+      <div class="en"><p><strong>Guided BP</strong> shares a similar idea with SA but modifies the procedure of back propagating gradients. Since negative gradients are challenging to explain, Guided BP only back propagates positive gradients while clipping negative gradients to zeros. Then only positive gradients are used to measure the importance of different input features. Note that Guided BP shares the same limitations as SA.</p></div>
+      <div class="zh"><p><strong>Guided BP</strong>（引导反向传播）与 SA 思路相似，但修改了梯度反向传播的过程。由于负梯度难以解释，Guided BP 只反向传播正梯度，并将负梯度裁剪为零。然后仅用正梯度来衡量不同输入特征的重要性。注意，Guided BP 与 SA 有相同的局限性。</p></div>
+    </div>
+
+    <div class="pair">
+      <div class="en"><p><strong>CAM</strong> maps the node features in the final layer to the input space to identify important nodes. It requires the GNN model to employ a global average pooling (GAP) layer and a fully-connected (FC) layer as the final classifier. Specifically, CAM takes the final node embeddings and combines different feature maps by weighted summations to obtain importance scores for input nodes. Note that the weights are obtained from the final fully-connected (FC) layer connected with the target prediction. This approach is also very simple but still has several major limitations. First, CAM has special requirements for the GNN structure, which limits its application and generalization. Second, it assumes that the final node embeddings can reflect the input importance, which is heuristic and may not be true. Furthermore, it can only explain graph classification models, since it cannot be directly applied to node classification tasks, and needs it sends the final FC layer to map predictions to different nodes.</p></div>
+      <div class="zh"><p><strong>CAM</strong>（类激活映射，Class Activation Mapping）将最后一层中的节点特征映射到输入空间，以识别重要节点。它要求 GNN 模型使用全局平均池化（GAP）层和全连接（FC）层作为最终分类器。具体来说，CAM 取最终的节点嵌入，通过加权求和组合不同的特征图，以获得输入节点的重要性分数。注意，权重来自与目标预测相连的最终全连接（FC）层。这种方法也非常简单，但仍存在若干主要局限。首先，CAM 对 GNN 结构有特殊要求，这限制了它的应用和泛化。其次，它假设最终的节点嵌入能反映输入重要性，这是启发式的，可能并不成立。此外，它只能解释图分类模型，因为无法直接应用于节点分类任务，需要通过最终 FC 层将预测映射到不同节点。</p></div>
+    </div>
+
+    <div class="pair">
+      <div class="en"><p><strong>Grad-CAM</strong> extends the CAM to general graph classification models by removing the constraint of the GAP layer. Instead of using the weights between the GAP output and FC output, it employs gradients as the weights to combine different feature maps. Specifically, it first computes the gradients of the target prediction with respect to the final node embeddings. Then it averages such gradients to obtain the weight for each feature map. However, it is also based on heuristic assumptions and cannot explain node classification models.</p></div>
+      <div class="zh"><p><strong>Grad-CAM</strong> 通过去除 GAP 层的约束，将 CAM 扩展到一般的图分类模型。它不使用 GAP 输出与 FC 输出之间的权重，而是利用梯度作为权重来组合不同的特征图。具体来说，它首先计算目标预测相对于最终节点嵌入的梯度，然后对这些梯度取平均以获得每个特征图的权重。然而，它也基于启发式假设，无法解释节点分类模型。</p></div>
+    </div>
+
+    <h3 class="sub" id="sec-4-2">4.2 Perturbation-Based Methods<span class="zh">4.2 基于扰动的方法</span></h3>
+    <div class="pair">
+      <div class="en"><p>Next, we introduce the perturbation-based methods for explaining deep graph models.</p></div>
+      <div class="zh"><p>接下来，我们介绍用于解释深度图模型的基于扰动的方法。</p></div>
+    </div>
+
+    <h4 class="sub4">4.2.1 A unified view<span class="zh">4.2.1 统一视角</span></h4>
+    <div class="pair">
+      <div class="en"><p>The perturbation-based methods are widely employed to explain deep image models. The underlying motivation is to study the output variations with respect to different input perturbations. Intuitively, when important input information is retained, the predictions should be similar to the original predictions. Existing methods learn a pixel to generate a mask to select important inputs cannot be directly applied to graph models. Unlike images, graphs are represented as nodes and edges, and they cannot be resized to share the same node and edge numbers. In addition, different from images, the structural information is critical for graphs and can determine the functionalities.</p></div>
+      <div class="zh"><p>基于扰动的方法被广泛用于解释深度图像模型。其根本动机是研究输出相对于不同输入扰动的变化。直观地说，当重要的输入信息被保留时，预测应当与原始预测相似。现有通过学习像素来生成掩码以选择重要输入的方法无法直接应用于图模型。与图像不同，图以节点和边的形式表示，无法通过调整尺寸使不同的图共享相同的节点和边数量。此外，与图像不同，结构信息对图至关重要，并能决定其功能。</p></div>
+    </div>
+
+    <div class="pair">
+      <div class="en"><p>To explain deep graph models, several perturbation-based methods are proposed, including GNNExplainer, PGExplainer, ZORRO, GraphMask, Causal Screening, and SubgraphX. They share a similar high-level pipeline as shown in Figure 2. First, given the input graph, masks are obtained in different ways to indicate important input features. Note that depending on the explanation tasks, different masks are generated, such as node masks, edge masks, and node feature masks. Next, the generated masks are combined with the input graph to obtain a new graph containing important input information. Finally, the new graph is fed into the trained GNNs to evaluate the masks and update the mask generation algorithms. Intuitively, the important input features captured by masks should convey the key semantic meaning and hence lead to a similar prediction to the original one. The difference between these methods mainly lies in three aspects: the mask generation algorithm, the type of masks, and the objective function.</p></div>
+      <div class="zh"><p>为解释深度图模型，已提出多种基于扰动的方法，包括 GNNExplainer、PGExplainer、ZORRO、GraphMask、Causal Screening 和 SubgraphX。它们共享相似的高层流程，如图 2 所示。首先，给定输入图，以不同方式获得掩码以指示重要的输入特征。注意，根据解释任务的不同，会生成不同类型的掩码，例如节点掩码、边掩码和节点特征掩码。接下来，将生成的掩码与输入图结合，得到包含重要输入信息的新图。最后，将新图输入训练好的 GNN 以评估掩码并更新掩码生成算法。直观地说，掩码捕捉到的重要输入特征应当传达关键的语义信息，从而产生与原始预测相似的预测。这些方法之间的差异主要在于三个方面：掩码生成算法、掩码类型和目标函数。</p></div>
+    </div>
+
+    <figure class="blockfig">
+      <div class="figbody">
+        <div class="pipe">
+          <span class="pnode root">Input graph<br>输入图</span>
+          <span class="arrow">→</span>
+          <div class="pipe-stack">
+            <span class="pnode hl">Mask generation algorithm<br>掩码生成算法</span>
+            <div class="pipe" style="gap:6px;">
+              <span class="pnode small">Feature mask<br>特征掩码</span>
+              <span class="pnode small">Edge mask<br>边掩码</span>
+              <span class="pnode small">Node mask<br>节点掩码</span>
+            </div>
+          </div>
+          <span class="arrow">→</span>
+          <span class="pnode">Masked graph<br>掩码图</span>
+          <span class="arrow">→</span>
+          <span class="pnode">GNNs</span>
+          <span class="arrow">→</span>
+          <span class="pnode">Prediction<br>预测</span>
+          <span class="arrow ret">← 反馈 ←</span>
+          <span class="pnode">Objective function<br>目标函数</span>
+        </div>
+      </div>
+      <figcaption>Fig. 2. The general pipeline of the perturbation-based methods. They employ different mask generation algorithms to obtain different types of masks. Note that the mask can correspond to nodes, edges, or node features. In this example, we show a soft mask for node features, a discrete mask for edges, and an approximate discrete mask for nodes. Then the mask is combined with the input graph to capture important input information. Finally, the trained GNNs evaluate whether the new prediction is similar to the original prediction and can provide guidance for improving the mask generation algorithms.<span class="cap-zh">图 2. 基于扰动的方法的一般流程。它们使用不同的掩码生成算法来获得不同类型的掩码。注意，掩码可以对应节点、边或节点特征。在本例中，我们展示了节点特征的软掩码、边的离散掩码和节点的近似离散掩码。然后将掩码与输入图结合以捕捉重要的输入信息。最后，训练好的 GNN 评估新预测是否与原始预测相似，并可为改进掩码生成算法提供指导。</span></figcaption>
+    </figure>
+
+    <div class="pair">
+      <div class="en"><p>The soft masks contain continuous values between [0,1] and the mask generation algorithm can be directly updated by back-propagation. However, soft masks are suffered from the “introduced evidence” problem <a href="#r14">[14]</a> that any non-zero or non-one value in the mask may introduce new semantic meaning or new noise to the input graph, thus affecting the explanation results. Meanwhile, the discrete masks only contain discrete values 0 and 1, which can avoid the “introduced evidence” problem since no new numerical value is introduced. However, discrete masks always involve non-differentiable operations, such as sampling. One popular way to solve it is the gradient technique <a href="#r66">[66]</a>. Furthermore, recent studies <a href="#r50">[50]</a>, <a href="#r67">[67]</a>, <a href="#r68">[68]</a> propose to employ reparameterization tricks, such as Gumbel-Softmax estimation and sparse relaxations, to approximate the discrete masks. Note that the output mask is not strictly discrete but provides a good approximation, which not only enables the back-propagation but also largely alleviates the “introduced evidence” problem.</p></div>
+      <div class="zh"><p>软掩码包含 [0,1] 之间的连续值，掩码生成算法可以直接通过反向传播更新。然而，软掩码存在“引入证据”（introduced evidence）问题 <a href="#r14">[14]</a>：掩码中任何非零或非一的值都可能给输入图引入新的语义或新的噪声，从而影响解释结果。与此同时，离散掩码只包含离散值 0 和 1，由于不引入新的数值，可以避免“引入证据”问题。然而，离散掩码总是涉及不可微的操作，例如采样。一种流行的解决方式是梯度技术 <a href="#r66">[66]</a>。此外，近期研究 <a href="#r50">[50]</a>、<a href="#r67">[67]</a>、<a href="#r68">[68]</a> 提出使用重参数化技巧（如 Gumbel-Softmax 估计和稀疏松弛）来近似离散掩码。注意，输出的掩码并非严格离散，但提供了很好的近似，这不仅支持反向传播，还在很大程度上缓解了“引入证据”问题。</p></div>
+    </div>
+
+    <h4 class="sub4">4.2.2 Methods<span class="zh">4.2.2 方法</span></h4>
+
+    <div class="pair">
+      <div class="en"><p><strong>GNNExplainer</strong> <a href="#r46">[46]</a> learns soft masks for edges and node features to explain the predictions via mask optimization. To obtain masks, it randomly initializes soft masks and treats them as trainable variables. Then GNNExplainer combines the masks with the original graph via element-wise multiplications. Next, the masks are optimized by maximizing the mutual information between the predictions of the original graph and the predictions of the newly obtained graph. Even though different regularization terms, such as element-wise entropy, are employed to encourage optimized masks to be discrete, the obtained masks are still soft masks so that GNNExplainer cannot avoid the “introduced evidence” problem. In addition, the masks are optimized for each input graph individually and hence the explanations may lack a global view.</p></div>
+      <div class="zh"><p><strong>GNNExplainer</strong> <a href="#r46">[46]</a> 通过掩码优化学习边和节点特征的软掩码来解释预测。为获得掩码，它随机初始化软掩码并将其视为可训练变量。然后 GNNExplainer 通过逐元素乘法将掩码与原始图结合。接下来，通过最大化原始图预测与新图预测之间的互信息来优化掩码。尽管使用了不同的正则化项（如逐元素熵）来促使优化后的掩码趋于离散，所获得的掩码仍然是软掩码，因此 GNNExplainer 无法避免“引入证据”问题。此外，掩码是针对每个输入图单独优化的，因此解释可能缺乏全局视角。</p></div>
+    </div>
+
+    <div class="pair">
+      <div class="en"><p><strong>PGExplainer</strong> <a href="#r47">[47]</a> learns approximated discrete masks for edges to explain the predictions. To obtain edge masks, it trains a parameterized mask predictor to predict edge masks. Given an input graph, it first obtains the embeddings for each edge by concatenating the corresponding node embeddings. Then the predictor uses the edge embeddings to predict the probability of each edge being selected, which can be treated as the importance score. Next, the approximated discrete masks are sampled via the reparameterization trick. Finally, the mask predictor is trained by maximizing the mutual information between the original predictions and new predictions. Note that even though the reparameterization trick is employed, the obtained masks are not strictly discrete but can largely alleviate the “introduced evidence” problem. In addition, since all edges in the dataset share the same predictor, the explanations can provide a global understanding of the trained GNNs.</p></div>
+      <div class="zh"><p><strong>PGExplainer</strong> <a href="#r47">[47]</a> 学习边的近似离散掩码来解释预测。为获得边掩码，它训练一个参数化的掩码预测器来预测边掩码。给定一个输入图，它首先通过拼接相应的节点嵌入来获得每条边的嵌入，然后预测器利用边嵌入预测每条边被选中的概率，该概率可视为重要性分数。接下来，通过重参数化技巧对近似离散掩码进行采样。最后，通过最大化原始预测与新预测之间的互信息来训练掩码预测器。注意，即使使用了重参数化技巧，所获得的掩码也不是严格离散的，但可以在很大程度上缓解“引入证据”问题。此外，由于数据集中所有边共享同一个预测器，其解释可以提供对训练后 GNN 的全局理解。</p></div>
+    </div>
+
+    <div class="pair">
+      <div class="en"><p><strong>GraphMask</strong> <a href="#r57">[57]</a> is a post-hoc method for explaining the edge importance in each GNN layer. Similar to the PGExplainer, it trains a classifier to predict whether an edge can be dropped without affecting the original predictions. However, GraphMask obtains an edge mask for each GNN layer while PGExplainer only focuses the input space. In addition, to avoid changing graph structures, the dropped edges are replaced by learnable baseline connections, which are vectors with the same dimensions as node embeddings. Note that binary Concrete distribution <a href="#r68">[68]</a> and reparameterization trick are employed to approximate discrete masks. In addition, the classifier is trained using the whole dataset by minimizing a divergence term, which measures the difference between network predictions. Similar to PGExplainer, it can largely alleviate the “introduced evidence” problem and provide a global understanding of the trained GNNs.</p></div>
+      <div class="zh"><p><strong>GraphMask</strong> <a href="#r57">[57]</a> 是一种事后方法，用于解释每个 GNN 层中的边重要性。与 PGExplainer 类似，它训练一个分类器来预测某条边是否可以在不影响原始预测的情况下被丢弃。然而，GraphMask 为每个 GNN 层获得一个边掩码，而 PGExplainer 只关注输入空间。此外，为避免改变图结构，被丢弃的边由可学习的基线连接（与节点嵌入同维的向量）替代。注意，它使用二值 Concrete 分布 <a href="#r68">[68]</a> 和重参数化技巧来近似离散掩码。此外，分类器使用整个数据集训练，通过最小化衡量网络预测差异的散度项来优化。与 PGExplainer 类似，它可以在很大程度上缓解“引入证据”问题，并提供对训练后 GNN 的全局理解。</p></div>
+    </div>
+
+    <div class="pair">
+      <div class="en"><p><strong>ZORRO</strong> <a href="#r56">[56]</a> employs discrete masks to identify important input nodes and node features. Given an input graph, a greedy algorithm is used to select nodes or node features step by step to obtain discrete masks for nodes and features. For each step, ZORRO selects one node or one node feature with the highest fidelity score. Note that the objective function, fidelity score, measure how the new predictions match the original predictions of the model by fixing the selected nodes/features and replacing the others with random noise values. Since there is no training procedure involved, the non-differentiable limitation of discrete masks is avoided. In addition, by using hard masks, ZORRO is not suffered from the “introduced evidence” problem. However, the greedy mask selection algorithm may lead to local optimal explanations. In addition, the explanations may lack a global understanding since masks are generated for each graph individually.</p></div>
+      <div class="zh"><p><strong>ZORRO</strong> <a href="#r56">[56]</a> 使用离散掩码来识别重要的输入节点和节点特征。给定一个输入图，使用贪心算法逐步选择节点或节点特征，以获得节点和特征的离散掩码。每一步，ZORRO 选择保真度（fidelity）分数最高的一个节点或一个节点特征。注意，目标函数——保真度分数——通过固定所选节点/特征并将其他部分替换为随机噪声值，衡量新预测与模型原始预测的匹配程度。由于不涉及训练过程，避免了离散掩码不可微的局限。此外，通过使用硬掩码，ZORRO 不受“引入证据”问题困扰。然而，贪心掩码选择算法可能导致局部最优的解释。此外，由于掩码是针对每个图单独生成的，解释可能缺乏全局理解。</p></div>
+    </div>
+
+    <div class="pair">
+      <div class="en"><p><strong>Causal Screening</strong> <a href="#r58">[58]</a> studies the causal attribution of different edges in the input graph as explanations. It identifies an edge mask for the explanatory subgraph. The key idea of causal attribution is to study the change of predictions when adding an edge into the current explanatory subgraph, known as the causal effect. To obtain edge masks for each step, it studies the causal effects of different edges and selects the edge with the highest causal effect to add to the explanatory subgraph. Specifically, it employs the individual causal effect (ICE) to select edges, which measures mutual information (between the predictions of original graphs and the explanatory subgraphs) difference after adding different edges to the subgraph. Similar to ZORRO, Causal Screening is a greedy algorithm generating discrete masks without any training procedure. Hence, it is not suffered from the “introduced evidence” problem but may lack a global understanding and stuck in local optimal explanations.</p></div>
+      <div class="zh"><p><strong>Causal Screening</strong>（因果筛选）<a href="#r58">[58]</a> 研究输入图中不同边的因果归因作为解释。它为解释性子图识别一个边掩码。因果归因的核心思想是研究将一条边加入当前解释性子图时预测的变化，即因果效应。为获得每一步的边掩码，它研究不同边的因果效应，并选择因果效应最高的边加入解释性子图。具体来说，它使用个体因果效应（ICE）来选择边，该效应衡量将不同边加入子图后（原始图预测与解释性子图预测之间的）互信息差异。与 ZORRO 类似，Causal Screening 是一种生成离散掩码的贪心算法，不涉及任何训练过程。因此，它不受“引入证据”问题困扰，但可能缺乏全局理解并陷入局部最优解释。</p></div>
+    </div>
+
+    <div class="pair">
+      <div class="en"><p><strong>SubgraphX</strong> <a href="#r48">[48]</a> explores subgraph-level explanations for deep graph models. It employs the Monte Carlo Tree Search (MCTS) algorithm <a href="#r69">[69]</a> to efficiently explore different subgraphs via node pruning and select the most important subgraph from the leaves of the search tree as the explanation of the prediction. In addition, it employs Shapley value <a href="#r70">[70]</a> as the reward of MCTS to measure the importance of subgraphs and proposes an efficient approximation of Shapley value by only considering the interactions within message passing range. While SubgraphX is not directly studying masks, the MCTS algorithm can be understood as the mask generation algorithm and its node pruning actions can be regarded as different masks to obtain subgraphs. In addition, the Shapley values can be treated as the objective function to update the mask generation algorithm. Compared with other perturbation-based methods, its obtained subgraphs are more human-intelligible and suitable for graph data. However, the computational cost is more expensive since it needs to explore different subgraphs with the MCTS algorithm.</p></div>
+      <div class="zh"><p><strong>SubgraphX</strong> <a href="#r48">[48]</a> 探索深度图模型的子图级解释。它使用蒙特卡洛树搜索（MCTS）算法 <a href="#r69">[69]</a>，通过节点剪枝高效地探索不同的子图，并从搜索树的叶子节点中选择最重要的子图作为预测的解释。此外，它使用 Shapley 值 <a href="#r70">[70]</a> 作为 MCTS 的奖励来衡量子图的重要性，并提出了一种高效近似 Shapley 值的方法，即只考虑消息传递范围内的交互。虽然 SubgraphX 不直接研究掩码，但 MCTS 算法可以被理解为掩码生成算法，其节点剪枝动作可视为获得子图的不同掩码。此外，Shapley 值可被视为更新掩码生成算法的目标函数。与其他基于扰动的方法相比，它获得的子图更易被人类理解，更适合图数据。然而，由于需要用 MCTS 算法探索不同的子图，计算成本更高。</p></div>
+    </div>
+
+    <h3 class="sub" id="sec-4-3">4.3 Surrogate Methods<span class="zh">4.3 代理方法</span></h3>
+    <div class="pair">
+      <div class="en"><p>In this section, we introduce the surrogate methods for explaining deep graph models.</p></div>
+      <div class="zh"><p>在本节中，我们介绍用于解释深度图模型的代理方法。</p></div>
+    </div>
+
+    <h4 class="sub4">4.3.1 A unified view<span class="zh">4.3.1 统一视角</span></h4>
+    <div class="pair">
+      <div class="en"><p>Deep models are challenging to explain because of the complex and non-linear relationships between the input and output predictions. A popular way to provide instance-level explanations for image models is known as surrogate method. The underlying idea is to employ a simple and interpretable surrogate model to approximate the predictions of the complex deep model for the neighboring areas of the input example. Note that these methods assume that the relationships in the neighboring areas of the input example is less complex and can be well captured by a simpler surrogate model. Then the explanations from the interpretable surrogate model are used to explain the original prediction. Applying surrogate methods to the graph domain is challenging since graph data are discrete and contain topology information. Then it is not clear how to define the neighboring regions of the input graph and what interpretable surrogate models are suitable.</p></div>
+      <div class="zh"><p>由于输入与输出预测之间存在复杂且非线性的关系，深度模型难以解释。为图像模型提供实例级解释的一种流行方式被称为代理（surrogate）方法。其基本思想是利用一个简单且可解释的代理模型来近似复杂深度模型在输入样本邻近区域内的预测。注意，这些方法假设输入样本邻近区域内的关系较为简单，可以被更简单的代理模型很好地捕捉。然后，用可解释代理模型的解释来解释原始预测。将代理方法应用于图领域具有挑战性，因为图数据是离散的且包含拓扑信息。因此，如何定义输入图的邻近区域以及哪些可解释代理模型适用，目前尚不清楚。</p></div>
+    </div>
+
+    <div class="pair">
+      <div class="en"><p>Recently, several surrogate methods are proposed to explain deep graph models, including GraphLime <a href="#r61">[61]</a>, RelEx <a href="#r62">[62]</a>, and PGM-Explainer <a href="#r63">[63]</a>. The general pipeline of these methods is shown in Figure 3. To explain the prediction of a given input graph, they first obtain a local dataset containing multiple neighboring data objects and their predictions. Then they fit an interpretable model to learn the local dataset. Finally, the explanations from the interpretable model are regarded as the explanations of the original model for the input graph. While these methods share a similar high-level idea, the key difference lies in two aspects: how to obtain the local dataset and what interpretable surrogate model to use.</p></div>
+      <div class="zh"><p>近年来，已提出多种代理方法解释深度图模型，包括 GraphLime <a href="#r61">[61]</a>、RelEx <a href="#r62">[62]</a> 和 PGM-Explainer <a href="#r63">[63]</a>。这些方法的一般流程如图 3 所示。为解释给定输入图的预测，它们首先获得包含多个邻近数据对象及其预测的局部数据集，然后拟合一个可解释模型来学习该局部数据集，最后将可解释模型的解释视为输入图原始模型的解释。虽然这些方法共享相似的高层思想，但关键差异在于两个方面：如何获得局部数据集，以及使用何种可解释代理模型。</p></div>
+    </div>
+
+    <figure class="blockfig">
+      <div class="figbody">
+        <div class="pipe-row">
+          <div class="pipe">
+            <span class="pnode root">Input data<br>输入数据</span>
+            <span class="arrow">→</span>
+            <span class="pnode">GNNs</span>
+            <span class="arrow">→</span>
+            <span class="pnode">Prediction<br>预测</span>
+          </div>
+          <div class="pipe">
+            <span class="pnode small">Node/edge dropping<br>节点/边丢弃</span>
+            <span class="pnode small">Local neighbor sampling<br>局部邻居采样</span>
+            <span class="pnode small">Node feature perturbation<br>节点特征扰动</span>
+            <span class="arrow">→</span>
+            <span class="pnode">Sampled data<br>采样数据</span>
+            <span class="arrow">→</span>
+            <span class="pnode">New dataset<br>新数据集</span>
+            <span class="arrow">→</span>
+            <span class="pnode">GNNs</span>
+            <span class="arrow">→</span>
+            <span class="pnode">New predictions<br>新预测</span>
+          </div>
+          <div class="pipe">
+            <span class="pnode hl">Fit surrogate models<br>拟合代理模型</span>
+            <span class="pipe-stack" style="display:inline-flex;flex-direction:row;gap:6px;">
+              <span class="pnode small">HSIC Lasso</span>
+              <span class="pnode small">GCNs</span>
+              <span class="pnode small">Bayesian PGM</span>
+            </span>
+            <span class="arrow">→</span>
+            <span class="pnode root">Explanations<br>解释</span>
+          </div>
+        </div>
+      </div>
+      <figcaption>Fig. 3. The general pipeline of the surrogate methods. Given an input graph and its prediction, they first sample a local dataset to represent the relationships around the target data. Then different surrogate methods are applied to fit the local dataset. Note that surrogate models are generally simple and interpretable ML models. Finally, the explanations from the surrogate model can be regarded as the explanations of the original prediction.<span class="cap-zh">图 3. 代理方法的一般流程。给定一个输入图及其预测，它们首先采样一个局部数据集来表示目标数据周围的关系，然后应用不同的代理方法拟合该局部数据集。注意，代理模型通常是简单且可解释的机器学习模型。最后，代理模型的解释可被视为原始预测的解释。</span></figcaption>
+    </figure>
+
+    <h4 class="sub4">4.3.2 Methods<span class="zh">4.3.2 方法</span></h4>
+
+    <div class="pair">
+      <div class="en"><p><strong>GraphLime</strong> <a href="#r61">[61]</a> extends the LIME algorithm <a href="#r72">[72]</a> to deep graph models and studies the importance of different node features for node classification tasks. Given a target node in the input graph, GraphLime considers its N-hop neighboring nodes and their predictions as its local dataset where a reasonable choice of N is the number of layers in the trained GNNs. Then the Hilbert-Schmidt Independence Criterion (HSIC) Lasso <a href="#r73">[73]</a> is employed to fit the local dataset. Note that HSIC Lasso is a kernel-based feature selection algorithm. Finally, based on the weights of different features in HSIC Lasso, it can select important features to explain the HSIC Lasso predictions. Those selected features are regarded as the explanations of the original GNN prediction. However, GraphLime can only provide explanations for node features but ignore graph structures, such as nodes and edges, which are more important for graph data. In addition, GraphLime is proposed to explain node classification predictions but cannot be directly applied to graph classification models.</p></div>
+      <div class="zh"><p><strong>GraphLime</strong> <a href="#r61">[61]</a> 将 LIME 算法 <a href="#r72">[72]</a> 扩展到深度图模型，研究节点分类任务中不同节点特征的重要性。给定输入图中的一个目标节点，GraphLime 将其 N 跳邻居节点及其预测视为局部数据集，其中 N 的合理取值是训练后 GNN 的层数。然后使用 Hilbert-Schmidt 独立性准则（HSIC）Lasso <a href="#r73">[73]</a> 拟合局部数据集。注意，HSIC Lasso 是一种基于核的特征选择算法。最后，根据 HSIC Lasso 中不同特征的权重，它可以选择重要特征来解释 HSIC Lasso 的预测。这些被选中的特征被视为原始 GNN 预测的解释。然而，GraphLime 只能提供节点特征的解释，而忽略了图结构（如节点和边），而后者对图数据更为重要。此外，GraphLime 用于解释节点分类预测，无法直接应用于图分类模型。</p></div>
+    </div>
+
+    <div class="pair">
+      <div class="en"><p><strong>RelEx</strong> <a href="#r62">[62]</a> also studies the explainability of node classification models by combining the ideas of surrogate methods and perturbation-based methods. Given a target node and its computational graph (N-hop neighbors), it first obtains a local dataset by randomly sampling connected subgraphs from the computational graph and feeding these subgraphs to the trained GNNs to obtain their predictions. Specifically, starting from the target node, it randomly selects neighboring nodes in a BFS manner. Next, it employs a GCN model as the surrogate model to fit the local datasets. Note that different from LIME and GraphLime, the surrogate model in RelEx is not interpretable. After training, it further applies the aforementioned perturbation-based methods, such as generating soft masks or Gumbel-Softmax masks, to explain the predictions. Compared with GraphLime, it can provide explanations regarding important nodes. However, it contains multiple steps of approximations, such as using the surrogate model to approximate local relationships and using masks to approximate the edge importance, thus making the explanations less convincing and trustable. Furthermore, as perturbation-based methods can be directly employed to explain original deep graph models, then it is not necessary to build another non-interpretable deep model as the surrogate model to explain. It is also unknown how it can be applied for graph classification tasks.</p></div>
+      <div class="zh"><p><strong>RelEx</strong> <a href="#r62">[62]</a> 结合代理方法和基于扰动方法的思想，同样研究节点分类模型的可解释性。给定一个目标节点及其计算图（N 跳邻居），它首先通过从计算图中随机采样连通子图并将这些子图输入训练好的 GNN 以获得其预测，从而获得局部数据集。具体来说，从目标节点开始，它以 BFS 方式随机选择邻居节点。接下来，它使用 GCN 模型作为代理模型来拟合局部数据集。注意，与 LIME 和 GraphLime 不同，RelEx 中的代理模型并不可解释。训练完成后，它进一步应用前述基于扰动的方法（如生成软掩码或 Gumbel-Softmax 掩码）来解释预测。与 GraphLime 相比，它可以提供关于重要节点的解释。然而，它包含多个近似步骤，例如使用代理模型近似局部关系、使用掩码近似边重要性，这使得解释不够有说服力和可信。此外，既然基于扰动的方法可以直接用于解释原始深度图模型，那么没有必要再构建一个不可解释的深度模型作为代理模型来解释。它如何应用于图分类任务也尚不清楚。</p></div>
+    </div>
+
+    <div class="pair">
+      <div class="en"><p><strong>PGM-Explainer</strong> <a href="#r63">[63]</a> builds a probabilistic graphical model to provide instance-level explanations for GNNs. The local dataset is obtained by random node feature perturbation. Specifically, given an input graph, each time PGM-Explainer randomly perturbs the node features of several random nodes within the computational graph. Then for any node in the computational graph, PGM-Explainer records a random variable indicating whether its features are perturbed and its influence on the GNN predictions. By repeating such procedures multiple times, a local dataset is obtained. Note that the local dataset of PGM-Explainer contains node variables instead of different neighboring graph samples. Then it selects top dependent variables to reduce the size of the local dataset via the Grow-Shrink (GS) algorithm <a href="#r74">[74]</a>. Finally, an interpretable Bayesian network is employed to fit the local dataset and to explain the predictions of the original GNN model. PGM-Explainer can provide explanations regarding graph nodes but ignore graph edges, which contain important graph topology information. In addition, different from GraphLime and RelEx, the PGM-Explainer can be used to explain both node classification and graph classification tasks.</p></div>
+      <div class="zh"><p><strong>PGM-Explainer</strong> <a href="#r63">[63]</a> 构建概率图模型，为 GNN 提供实例级解释。局部数据集通过随机节点特征扰动获得。具体来说，给定一个输入图，每次 PGM-Explainer 随机扰动计算图内若干随机节点的节点特征。然后，对于计算图中的任意节点，PGM-Explainer 记录一个随机变量，指示其特征是否被扰动及其对 GNN 预测的影响。通过多次重复该过程，获得一个局部数据集。注意，PGM-Explainer 的局部数据集包含节点变量，而非不同的邻近图样本。然后，它通过 Grow-Shrink（GS）算法 <a href="#r74">[74]</a> 选择最相关的依赖变量来缩减局部数据集的规模。最后，使用一个可解释的贝叶斯网络拟合局部数据集，并解释原始 GNN 模型的预测。PGM-Explainer 可以提供关于图节点的解释，但忽略了包含重要图拓扑信息的图边。此外，与 GraphLime 和 RelEx 不同，PGM-Explainer 既可以用于解释节点分类任务，也可以用于解释图分类任务。</p></div>
+    </div>
+
+    <h3 class="sub" id="sec-4-4">4.4 Decomposition Methods<span class="zh">4.4 分解方法</span></h3>
+    <div class="pair">
+      <div class="en"><p>Finally, we introduce the decomposition methods for explaining deep graph models.</p></div>
+      <div class="zh"><p>最后，我们介绍用于解释深度图模型的分解方法。</p></div>
+    </div>
+
+    <h4 class="sub4">4.4.1 A unified view<span class="zh">4.4.1 统一视角</span></h4>
+    <div class="pair">
+      <div class="en"><p>Another popular way to explain deep image classifiers is decomposition methods, which measure the importance of input features by decomposing the original model prediction into several terms. These terms are regarded as the importance scores of the corresponding input features. These methods directly study the model parameters to reveal the relationships between the features in the input space and the output predictions. Note that the conservative property of these methods requires that the sum of the decomposed terms is equal to the original prediction score. However, it is challenging to directly apply such methods to the graph domain since graphs contain nodes, edges, and node features. It is non-trivial to distribute scores to different edges while graph edges contain important structural information that cannot be ignored.</p></div>
+      <div class="zh"><p>解释深度图像分类器的另一种流行方式是分解方法，它通过将原始模型预测分解为若干项来衡量输入特征的重要性。这些项被视为相应输入特征的重要性分数。这些方法直接研究模型参数，以揭示输入空间特征与输出预测之间的关系。注意，这些方法的守恒性（conservative property）要求分解项之和等于原始预测分数。然而，由于图包含节点、边和节点特征，直接将此类方法应用于图领域具有挑战性。将分数分配到不同的边并非易事，而图的边包含不可忽视的重要结构信息。</p></div>
+    </div>
+
+    <div class="pair">
+      <div class="en"><p>Recently, several decomposition methods are proposed to explain the deep graph neural networks, including Layer-wise Relevance Propagation (LRP) <a href="#r54">[54]</a>, <a href="#r59">[59]</a>, Excitation BP <a href="#r65">[65]</a> and GNN-LRP <a href="#r60">[60]</a>. The intuition of these algorithms is to score decomposition rules to distribute the prediction scores to the input space. The general pipeline of these methods is shown in Figure 4. These methods distribute the prediction score layer by layer in a back-propagation manner until the input layer. Starting from the output layer, the model's prediction is treated as the initial target score. Then the score is decomposed and distributed to the neurons in the previous layer following the decomposition rules. By repeating such procedures until input space, they can obtain importance scores for node features, which can be combined to represent edge importance, node importance, and walk importance. It is noteworthy that all of these algorithms ignore the activation functions in deep graph models. The main difference among these methods is the score decomposition rules, the view of decomposition, and the targets of explanations.</p></div>
+      <div class="zh"><p>近年来，已提出多种分解方法解释深度图神经网络，包括逐层相关性传播（LRP）<a href="#r54">[54]</a>、<a href="#r59">[59]</a>、Excitation BP <a href="#r65">[65]</a> 和 GNN-LRP <a href="#r60">[60]</a>。这些算法的直觉是以分数分解规则将预测分数分配到输入空间。这些方法的一般流程如图 4 所示。这些方法以反向传播的方式逐层分配预测分数，直至输入层。从输出层开始，模型的预测被视为初始目标分数，然后按照分解规则将该分数分解并分配到前一层的神经元。重复这一过程直至输入空间，它们可以获得节点特征的重要性分数，这些分数可以组合起来表示边重要性、节点重要性和游走重要性。值得注意的是，所有这些算法都忽略了深度图模型中的激活函数。这些方法之间的主要差异在于分数分解规则、分解视角和解释目标。</p></div>
+    </div>
+
+    <figure class="blockfig">
+      <div class="figbody">
+        <div class="pipe">
+          <span class="pnode root">Target score<br>目标分数</span>
+          <span class="arrow">→</span>
+          <div class="pipe-stack">
+            <span class="pnode hl">Explain · 解释<br>LRP / EB / GNN-LRP</span>
+          </div>
+          <span class="arrow">→</span>
+          <div class="pipe-stack">
+            <span class="pnode hl">Distribute · 分配<br>Designed BP（设计的反向传播）</span>
+            <span class="pnode small">逐层分解至输入层<br>layer by layer to input</span>
+          </div>
+          <span class="arrow">→</span>
+          <div class="pipe-stack">
+            <span class="pnode">Node explanation<br>节点解释</span>
+            <span class="pnode">Walk explanation<br>游走解释</span>
+          </div>
+          <span class="arrow">→</span>
+          <span class="pnode">Prediction score<br>预测分数</span>
+        </div>
+      </div>
+      <figcaption>Fig. 4. The general pipeline of the decomposition methods. These methods distribute the prediction score to input space to indicate the input importance. The target score is decomposed layer by layer in a back-propagation manner. Note that the main difference among these methods is the employed score decomposition rule.<span class="cap-zh">图 4. 分解方法的一般流程。这些方法将预测分数分配到输入空间以指示输入重要性。目标分数以反向传播的方式逐层分解。注意，这些方法的主要差异在于所使用的分数分解规则。</span></figcaption>
+    </figure>
+
+    <h4 class="sub4">4.4.2 Methods<span class="zh">4.4.2 方法</span></h4>
+
+    <div class="pair">
+      <div class="en"><p><strong>LRP</strong> <a href="#r54">[54]</a>, <a href="#r59">[59]</a> extends the original LRP algorithm <a href="#r75">[75]</a> to deep graph models. It decomposes the output prediction score to different node importance scores. The score decomposition rule is developed based on the hidden features and weights. For a target neuron, its score is represented as a linear approximation of neuron scores from the previous layer. Intuitively, the neuron with a higher contribution of the target neuron activation receives a larger fraction of the target neuron score. Specifically, Baldassarre et al. <a href="#r54">[54]</a> applies the ε-stabilized rule from the original LRP, while Schwarzenthal et al. <a href="#r59">[59]</a> employs the z⁺-rule to perform decomposition. To satisfy the conservative property, the adjacency matrix is treated as a part of GNN model in the post-hoc explanation phase so that it can be ignored during score distribution; otherwise, the adjacent matrix will also receive decomposed scores, thus making the conservative property invalid. Since LRP is directly developed based on the model parameters, its explanation results are more trustable. However, it can only study the importance of different nodes and cannot be applied to graph structures, such as subgraphs and graph walks, which are more important for understanding GNNs. In addition, such a algorithm requires a comprehensive understanding of the model structures, which limits its applications for non-expert users, such as interdisciplinary researchers.</p></div>
+      <div class="zh"><p><strong>LRP</strong> <a href="#r54">[54]</a>、<a href="#r59">[59]</a> 将原始 LRP 算法 <a href="#r75">[75]</a> 扩展到深度图模型。它将输出预测分数分解为不同的节点重要性分数。分数分解规则基于隐藏特征和权重制定。对于目标神经元，其分数表示为前一层神经元分数的线性近似。直观地说，对目标神经元激活贡献越大的神经元，获得的分数比例越大。具体来说，Baldassarre 等人 <a href="#r54">[54]</a> 应用了原始 LRP 的 ε-稳定规则，而 Schwarzenthal 等人 <a href="#r59">[59]</a> 使用 z⁺ 规则进行分解。为满足守恒性，在事后解释阶段将邻接矩阵视为 GNN 模型的一部分，从而在分数分配时可将其忽略；否则，邻接矩阵也会获得分解分数，使守恒性失效。由于 LRP 直接基于模型参数开发，其解释结果更可信。然而，它只能研究不同节点的重要性，无法应用于子图和图游走等对理解 GNN 更重要的图结构。此外，此类算法需要对模型结构有全面的理解，这限制了它在非专家用户（如跨学科研究者）中的应用。</p></div>
+    </div>
+
+    <div class="pair">
+      <div class="en"><p><strong>Excitation BP</strong> <a href="#r65">[65]</a> shares a similar idea as the LRP algorithm but is developed from the view of the law of total probability. It defines that the probability of a neuron in the current layer is equal to the total probabilities it outputs to all connected neurons in the next layer. Then the score decomposition rule can be regarded as decomposing the target probability into several conditional probability terms. Note that the computation of Excitation BP is highly similar to the z⁺-rule in LRP. Hence, it shares the same advantages and limitations as the LRP algorithm.</p></div>
+      <div class="zh"><p><strong>Excitation BP</strong>（激励反向传播）<a href="#r65">[65]</a> 与 LRP 算法思想相似，但从全概率定律的角度出发。它定义当前层一个神经元的概率等于其输出到下一层所有相连神经元的总概率。于是，分数分解规则可被视为将目标概率分解为若干条件概率项。注意，Excitation BP 的计算与 LRP 中的 z⁺ 规则高度相似。因此，它与 LRP 算法具有相同的优点和局限性。</p></div>
+    </div>
+
+    <div class="pair">
+      <div class="en"><p><strong>GNN-LRP</strong> <a href="#r60">[60]</a> studies the importance of different graph walks. It is more coherent to the deep graph neural networks since graph walks correspond to message flows when performing neighborhood information aggregation. It treats the GNN model as a function and provides a view of high-order Taylor decomposition to develop the score decomposition. It is theoretically proven that the Taylor decomposition (at root zero) only contains T-order terms where T is the number of layers in the trained GNNs and each term corresponds to a T-step graph walk. Then such terms can be regarded as the importance scores of graph walks. Since it is not possible to directly compute the high-order derivatives given by Taylor expansion, GNN-LRP also follows a back propagation procedure to approximate the T-order terms. Note that the back propagation computation in GNN-LRP is similar to the LRP algorithm. However, instead of distributing scores to nodes or edges, GNN-LRP distributes scores to different graph walks. It records the paths of the distribution processes from layer to layer. Those paths are considered as different walks and the scores are obtained from their corresponding nodes. While GNN-LRP has a solid theoretical background, the approximations in its computations may not be accurate. In addition, the computational complexity is high since each walk is considered separately. Furthermore, it is also challenging for non-experts to use, especially for interdisciplinary domains, because the back propagation rules need to be derived for different models and GNN variants.</p></div>
+      <div class="zh"><p><strong>GNN-LRP</strong> <a href="#r60">[60]</a> 研究不同图游走的重要性。由于图游走对应于执行邻域信息聚合时的消息流，它与深度图神经网络更为一致。它将 GNN 模型视为一个函数，并提供了高阶泰勒分解的视角来制定分数分解。理论上已证明，泰勒分解（在根零点处）只包含 T 阶项，其中 T 是训练后 GNN 的层数，每一项对应一个 T 步图游走。于是这些项可被视为图游走的重要性分数。由于无法直接计算泰勒展开给出的高阶导数，GNN-LRP 也采用反向传播过程来近似 T 阶项。注意，GNN-LRP 中的反向传播计算与 LRP 算法类似。然而，它不是将分数分配给节点或边，而是将分数分配给不同的图游走。它记录逐层分配过程的路径，这些路径被视为不同的游走，分数从它们对应的节点获得。虽然 GNN-LRP 有坚实的理论基础，但其计算中的近似可能不够准确。此外，由于每个游走被单独考虑，计算复杂度较高。再者，对于非专家而言（尤其是跨学科领域），使用它也具有挑战性，因为需要为不同的模型和 GNN 变体推导反向传播规则。</p></div>
+    </div>
+  </section>
+
+  <!-- ===== 5 模型级解释 ===== -->
+  <section class="block" id="sec-5">
+    <span class="secnum">SECTION 5 · 第 5 节</span>
+    <h2 class="sec">Model-Level Explanations<span class="zh">模型级解释</span></h2>
+    <div class="pair">
+      <div class="en"><p>Different from instance-level methods, model-level methods aim at providing the general insights and high-level understanding to explain deep graph models. Specifically, they study what input graph patterns can lead to a certain GNN behavior, such as maximizing a target prediction. Input optimization <a href="#r16">[16]</a> is a popular direction to obtain model-level explanations for image classifiers. However, it cannot be directly applied to graph models due to the discrete graph topology information, thus making explaining GNNs at the model-level more challenging. Hence, it is still an important but less studied topic. To the best of our knowledge, the only existing model-level method for explaining graph neural networks is XGNN <a href="#r45">[45]</a>.</p></div>
+      <div class="zh"><p>与实例级方法不同，模型级方法旨在提供一般性洞见和高层理解来解释深度图模型。具体来说，它们研究什么样的输入图模式会导致某种特定的 GNN 行为，例如最大化某个目标预测。输入优化 <a href="#r16">[16]</a> 是为图像分类器获得模型级解释的一种流行方向。然而，由于图拓扑信息的离散性，它无法直接应用于图模型，这使得在模型级解释 GNN 更具挑战性。因此，这仍然是一个重要但研究较少的主题。据我们所知，解释图神经网络的唯一现有模型级方法是 XGNN <a href="#r45">[45]</a>。</p></div>
+    </div>
+
+    <div class="pair">
+      <div class="en"><p>XGNN proposes to explain GNNs via graph generation. Instead of directly optimizing the input graph, it trains a graph generator so that the generated graphs can maximize a target graph prediction. Then the generated graphs are regarded as the explanations for the target prediction and are expected to contain discriminative graph patterns. In XGNN, the graph generation is formulated as a reinforcement learning problem. For each step, the generator predicts how to add an edge to the current graph. Then the generated graphs are fed into the trained GNNs to obtain feedback to train the generator via policy gradient. In addition, several graph rules are incorporated to encourage the explanations to be both valid and human-intelligible. For example, the rule for chemical data can be defined as the node degree of an atom should not exceed its maximum chemical valency. In addition, XGNN can set a upper bond on the size of generated graphs so that the final explanations are succinct. Note that XGNN is a general framework for generating model-level explanations so any suitable graph generation algorithm can be applied. In addition, the explanations are general and provide a global understanding of the trained GNNs. However, the proposed XGNN only demonstrates its effectiveness in explaining graph classification models and it is unknown whether XGNN can be applied to node classification tasks, which is an important direction to explore in future studies.</p></div>
+      <div class="zh"><p>XGNN 提出通过图生成来解释 GNN。它不直接优化输入图，而是训练一个图生成器，使生成的图能够最大化某个目标图预测。然后，生成的图被视为目标预测的解释，并期望包含判别性的图模式。在 XGNN 中，图生成被建模为强化学习问题。每一步，生成器预测如何向当前图添加一条边，然后将生成的图输入训练好的 GNN 以获得反馈，通过策略梯度训练生成器。此外，XGNN 融入了若干图规则，以鼓励解释既有效又易于人类理解。例如，化学数据的规则可以定义为：原子的节点度不应超过其最大化学价。此外，XGNN 可以设置生成图大小的上限，使最终解释简洁。注意，XGNN 是生成模型级解释的通用框架，因此可以应用任何合适的图生成算法。此外，其解释是通用的，能提供对训练后 GNN 的全局理解。然而，所提出的 XGNN 仅在解释图分类模型方面展示了有效性，XGNN 能否应用于节点分类任务尚不清楚，这是未来研究值得探索的重要方向。</p></div>
+    </div>
+  </section>
+
+  <!-- ===== 6 综合对比分析 ===== -->
+  <section class="block" id="sec-6">
+    <span class="secnum">SECTION 6 · 第 6 节</span>
+    <h2 class="sec">A Comprehensive Comparative Analysis<span class="zh">综合对比分析</span></h2>
+    <div class="pair">
+      <div class="en"><p>In this section, we provide a comprehensive analysis of different explanation methods. The properties of different models are concluded in Table 1. Specifically, for each technique, we focus on the following aspects.</p></div>
+      <div class="zh"><p>在本节中，我们对不同的解释方法进行全面分析。不同模型的属性总结在表 1 中。具体来说，对每种技术，我们关注以下几个方面。</p></div>
+    </div>
+
+    <div class="tablewrap">
+      <table class="tbl">
+        <colgroup><col style="width:20%"><col style="width:14%"><col style="width:12%"><col style="width:12%"><col style="width:12%"><col style="width:12%"><col style="width:10%"><col style="width:8%"></colgroup>
+        <thead>
+          <tr>
+            <th>Method<span class="zh">方法</span></th>
+            <th>Type<span class="zh">类型</span></th>
+            <th>Learning<span class="zh">学习</span></th>
+            <th>Task<span class="zh">任务</span></th>
+            <th>Target<span class="zh">目标</span></th>
+            <th>Black-box<span class="zh">黑盒</span></th>
+            <th>Flow<span class="zh">流程</span></th>
+            <th>Design<span class="zh">图设计</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>SA [54, 55]</td><td>Instance-level</td><td>×</td><td>GC/NC</td><td>N/E/NF</td><td>×</td><td>Backward</td><td>×</td></tr>
+          <tr><td>Guided BP [54]</td><td>Instance-level</td><td>×</td><td>GC/NC</td><td>N/E/NF</td><td>×</td><td>Backward</td><td>×</td></tr>
+          <tr><td>CAM [55]</td><td>Instance-level</td><td>×</td><td>GC</td><td>N</td><td>×</td><td>Forward</td><td>×</td></tr>
+          <tr><td>Grad-CAM [55]</td><td>Instance-level</td><td>×</td><td>GC</td><td>N</td><td>×</td><td>Forward</td><td>×</td></tr>
+          <tr><td>GNNExplainer [46]</td><td>Instance-level</td><td>✓</td><td>GC/NC</td><td>E/NF</td><td>✓</td><td>Forward</td><td>✓</td></tr>
+          <tr><td>PGExplainer [47]</td><td>Instance-level</td><td>✓</td><td>GC/NC</td><td>E</td><td>✓</td><td>Forward</td><td>✓</td></tr>
+          <tr><td>GraphMask [57]</td><td>Instance-level</td><td>✓</td><td>GC/NC</td><td>E</td><td>✓</td><td>Forward</td><td>✓</td></tr>
+          <tr><td>ZORRO [56]</td><td>Instance-level</td><td>✓</td><td>GC/NC</td><td>N/NF</td><td>✓</td><td>Forward</td><td>✓</td></tr>
+          <tr><td>Causal Screening [58]</td><td>Instance-level</td><td>✓</td><td>GC/NC</td><td>E</td><td>✓</td><td>Forward</td><td>✓</td></tr>
+          <tr><td>SubgraphX [48]</td><td>Instance-level</td><td>✓</td><td>GC</td><td>Subgraph</td><td>✓</td><td>Forward</td><td>✓</td></tr>
+          <tr><td>LRP [54, 59]</td><td>Instance-level</td><td>×</td><td>GC/NC</td><td>N</td><td>×</td><td>Backward</td><td>×</td></tr>
+          <tr><td>Excitation BP [65]</td><td>Instance-level</td><td>×</td><td>GC/NC</td><td>N</td><td>×</td><td>Backward</td><td>×</td></tr>
+          <tr><td>GNN-LRP [60]</td><td>Instance-level</td><td>×</td><td>GC/NC</td><td>Walk</td><td>×</td><td>Backward</td><td>×</td></tr>
+          <tr><td>GraphLime [61]</td><td>Instance-level</td><td>✓</td><td>NC</td><td>NF</td><td>✓</td><td>Forward</td><td>×</td></tr>
+          <tr><td>RelEx [62]</td><td>Instance-level</td><td>✓</td><td>NC</td><td>N/E</td><td>✓</td><td>Forward</td><td>✓</td></tr>
+          <tr><td>PGM-Explainer [63]</td><td>Instance-level</td><td>✓</td><td>GC/NC</td><td>N</td><td>✓</td><td>Forward</td><td>✓</td></tr>
+          <tr><td>XGNN [45]</td><td>Model-level</td><td>✓</td><td>GC</td><td>Subgraph</td><td>✓</td><td>Forward</td><td>✓</td></tr>
+        </tbody>
+      </table>
+      <div class="tblnote">
+        <strong>TABLE 1</strong> · A comprehensive analysis of different explanation methods. Here “Type” indicates what type of explanations are provided. “Learning” denotes whether learning procedures are involved. “Task” means which tasks each method can be applied to, “Target” indicates the targets of explanations, “Black-box” means if the trained GNNs are treated as a black-box during the explanation stage. “Flow” denotes the computational flow of explanations, and “Design” indicates whether an explanation method has specific designs for graph data. Note that GC denotes graph classification, NC denotes node classification, N means nodes, E means edges, NF denotes node features, and Walk indicates graph walks.
+        <span class="zh"><strong>表 1</strong> · 对不同解释方法的综合分析。其中“Type（类型）”表示提供的解释类型；“Learning（学习）”表示是否涉及学习过程；“Task（任务）”表示每种方法可应用于哪些任务；“Target（目标）”表示解释的目标；“Black-box（黑盒）”表示在解释阶段是否将训练好的 GNN 视为黑盒；“Flow（流程）”表示解释的计算流程；“Design（图设计）”表示解释方法是否为图数据做了专门设计。注意，GC 表示图分类，NC 表示节点分类，N 表示节点，E 表示边，NF 表示节点特征，Walk 表示图游走。</span>
+      </div>
+    </div>
+
+    <div class="pair">
+      <div class="en"><p><strong>Type:</strong> It indicates the type of explanations provided by each explanation technique, including instance-level explanations and model-level explanations. Instance-level explanations are input-dependent and more specific while model-level explanations are more high-level and general.</p></div>
+      <div class="zh"><p><strong>类型（Type）：</strong>它表示每种解释技术提供的解释类型，包括实例级解释和模型级解释。实例级解释依赖于输入、更具针对性，而模型级解释更高层、更通用。</p></div>
+    </div>
+    <div class="pair">
+      <div class="en"><p><strong>Learning:</strong> It denotes whether the explanation technique involves any learning procedure. Generally, the explanation method with learning procedures tends to better capture the relationships between inputs and predictions. However, they become less trustable when the learning procedures introduce additional black-boxes. As shown in Table 1 there is no learning procedure in the feature/gradient-based methods and decomposition methods.</p></div>
+      <div class="zh"><p><strong>学习（Learning）：</strong>它表示解释技术是否涉及学习过程。一般来说，带有学习过程的解释方法往往能更好地捕捉输入与预测之间的关系。然而，当学习过程引入额外的黑盒时，它们的可信度会降低。如表 1 所示，基于特征/梯度的方法和分解方法中没有学习过程。</p></div>
+    </div>
+    <div class="pair">
+      <div class="en"><p><strong>Task:</strong> It indicates what each method can be applied to. Here we only consider node classification (NC) and graph classification (GC) tasks. It demonstrates the generalizability of different explanation methods.</p></div>
+      <div class="zh"><p><strong>任务（Task）：</strong>它表示每种方法可应用于哪些任务。这里我们只考虑节点分类（NC）和图分类（GC）任务。它展示了不同解释方法的泛化能力。</p></div>
+    </div>
+    <div class="pair">
+      <div class="en"><p><strong>Target:</strong> It shows the target explanation of each method, such as showing node importance, edge importance, or graph walk importance. In Table 1 N denotes nodes, E means edges, NF denotes node features, and Walk denotes graph walks. For graph models, it is more important to study the structures of input graphs, such as edges, graph walks, and subgraphs.</p></div>
+      <div class="zh"><p><strong>目标（Target）：</strong>它显示每种方法的解释目标，例如节点重要性、边重要性或图游走重要性。在表 1 中，N 表示节点，E 表示边，NF 表示节点特征，Walk 表示图游走。对于图模型，研究输入图的结构（如边、图游走和子图）更为重要。</p></div>
+    </div>
+    <div class="pair">
+      <div class="en"><p><strong>Black-box:</strong> It indicates whether the explanation technique treats the trained GNNs as a black-box. Several methods, including XGNN, GraphLime, PGM-Explainer, GNNExplainer, ZORRO, Causal Screening, and RelEx, only need to access the inputs and outputs to explain the trained GNNs, which means the trained GNNs are still treated as a black-box. For the other methods, they need to access the parameters or hidden representations of the trained GNNs. Note that by treating the trained GNNs as a black-box, the explanation method can be better generalized to applications where the GNN model is encapsulated or highly complex.</p></div>
+      <div class="zh"><p><strong>黑盒（Black-box）：</strong>它表示解释技术是否将训练好的 GNN 视为黑盒。包括 XGNN、GraphLime、PGM-Explainer、GNNExplainer、ZORRO、Causal Screening 和 RelEx 在内的若干方法，只需访问输入和输出即可解释训练好的 GNN，这意味着训练好的 GNN 仍被视为黑盒。对于其他方法，它们需要访问训练后 GNN 的参数或隐藏表示。注意，通过将训练好的 GNN 视为黑盒，解释方法可以更好地泛化到 GNN 模型被封装或高度复杂的应用中。</p></div>
+    </div>
+    <div class="pair">
+      <div class="en"><p><strong>Flow:</strong> It denotes the computational flow for explaining the trained GNNs. Several methods generate explanations in a backward manner, such as SA, Guided BP, CAM, Grad-CAM, LRP, Excitation BP, and GNN-LRP. The other methods only need the forward computations of the trained GNNs.</p></div>
+      <div class="zh"><p><strong>流程（Flow）：</strong>它表示解释训练后 GNN 的计算流程。若干方法以反向方式生成解释，例如 SA、Guided BP、CAM、Grad-CAM、LRP、Excitation BP 和 GNN-LRP。其他方法只需训练后 GNN 的前向计算。</p></div>
+    </div>
+    <div class="pair">
+      <div class="en"><p><strong>Design:</strong> It shows whether an explanation technique has specific designs for graph data or is simply extended from the image domain. Since graph data are special and their topology/structural information is important, it is necessary to explicitly consider such information to provide explanations. For the methods that do not have specific designs for graphs, they cannot consider the topology information and structures of graph data, which may limit the quality of their explanations.</p></div>
+      <div class="zh"><p><strong>图设计（Design）：</strong>它表示解释技术是否为图数据做了专门设计，还是仅仅从图像领域扩展而来。由于图数据特殊且其拓扑/结构信息很重要，有必要在提供解释时显式考虑这些信息。对于没有为图做专门设计的方法，它们无法考虑图数据的拓扑信息和结构，这可能会限制其解释的质量。</p></div>
+    </div>
+  </section>
+
+  <!-- ===== 7 评估 ===== -->
+  <section class="block" id="sec-7">
+    <span class="secnum">SECTION 7 · 第 7 节</span>
+    <h2 class="sec">Evaluations<span class="zh">评估</span></h2>
+    <div class="pair">
+      <div class="en"><p>In this section, we introduce the evaluations of graph model explanation techniques. Intuitively, good explanation results should faithfully explain the behaviors of GNN models. However, evaluating the explanation results is non-trivial due to the lack of ground truths. Hence, we discuss and analyze several commonly used datasets and metrics.</p></div>
+      <div class="zh"><p>在本节中，我们介绍图模型解释技术的评估。直观地说，好的解释结果应当忠实地解释 GNN 模型的行为。然而，由于缺乏真值（ground truth），评估解释结果并非易事。因此，我们讨论并分析几种常用的数据集和指标。</p></div>
+    </div>
+
+    <h3 class="sub" id="sec-7-1">7.1 Datasets<span class="zh">7.1 数据集</span></h3>
+    <div class="pair">
+      <div class="en"><p>First, it is critical to select proper datasets to evaluate different explanation techniques. Since human evaluations are necessary, the explanations need to be understandable by humans. Hence, it is desired that the data are intuitive and easy to visualize. In addition, good datasets should contain human-understandable rationales between the data examples and labels so that experts can verify whether such rationales are identified by explanation algorithms. To evaluate different explanation techniques, several types of datasets are commonly employed, including synthetic data, sentiment graph data, and molecular data.</p></div>
+      <div class="zh"><p>首先，选择合适的数据集来评估不同的解释技术至关重要。由于人工评估是必要的，解释需要能被人类理解。因此，理想的数据应直观且易于可视化。此外，好的数据集应当包含数据样本与标签之间人类可理解的内在逻辑，以便专家验证解释算法是否识别出这些逻辑。为评估不同的解释技术，通常使用几类数据集，包括合成数据、情感图数据和分子数据。</p></div>
+    </div>
+
+    <h4 class="sub4">7.1.1 Synthetic data<span class="zh">7.1.1 合成数据</span></h4>
+    <div class="pair">
+      <div class="en"><p>Recently, several synthetic datasets are built to evaluate explanation techniques <a href="#r14">[14]</a>, <a href="#r17">[17]</a>. In such datasets, different graph motifs are included and can determine the node labels or graph labels. In addition, the relationships between data examples and data labels are well defined by humans. Even though the trained GNNs may not perfectly capture such relationships, the graph motifs can be employed as reasonable approximations of the ground truths of explanation results. Here we introduce several common synthetic datasets.</p></div>
+      <div class="zh"><p>近年来，构建了若干合成数据集来评估解释技术 <a href="#r14">[14]</a>、<a href="#r17">[17]</a>。在这类数据集中，包含不同的图模体（graph motif），这些模体可以决定节点标签或图标签。此外，数据样本与数据标签之间的关系由人类明确定义。即使训练好的 GNN 可能无法完美捕捉这些关系，图模体仍可作为解释结果真值的合理近似。下面我们介绍几种常见的合成数据集。</p></div>
+    </div>
+
+    <div class="pair">
+      <div class="en">
+        <p><strong>1) BA-shapes:</strong> It is a node classification dataset with 4 different node labels. For each graph, it contains a base graph (300 nodes) and a house-like five-node motif. Note that the base graph is obtained by the Barabási-Albert (BA) model, which can generate scale-free networks with a preferential attachment mechanism <a href="#r76">[76]</a>. The motif is attached to the base graph while random edges are added. Each node is labeled based on whether it belongs to the base graph or different spatial locations of the motif.</p>
+        <p><strong>2) BA-Community:</strong> It is a node classification dataset with 8 different labels. For each graph, it is obtained by combining two BA-shapes graphs with randomly added edges. Node labels are determined by the memberships of BA-shapes graphs and their structural locations.</p>
+        <p><strong>3) Tree-Cycle:</strong> It is a node classification dataset with 2 different labels. For each graph, it consists of a balanced binary tree graph with the depth equal to 8 and a six-node cycle motif. These two components are randomly connected. The label for the nodes in the motif is 1 and 0 otherwise.</p>
+        <p><strong>4) Tree-Grids:</strong> It is a node classification dataset with 2 different labels. It is the same as the Tree-Cycle dataset, except that the Tree-Grids dataset employs nine-node grid motifs instead of cycle motifs.</p>
+        <p><strong>5) BA-2Motifs:</strong> It is a graph classification dataset with 2 different graph labels. There are 800 graphs and each of them is obtained by attaching different motifs, such as the house-like motif and the five-node cycle motif, to the base BA graph. Different graphs are labeled based on the type of motif.</p>
+      </div>
+      <div class="zh">
+        <p><strong>1) BA-shapes：</strong>一个节点分类数据集，包含 4 种不同的节点标签。对于每个图，它包含一个基础图（300 个节点）和一个房子状的五节点模体。注意，基础图由 Barabási-Albert（BA）模型获得，该模型可通过优先连接机制生成无标度网络 <a href="#r76">[76]</a>。模体附着在基础图上，同时添加随机边。每个节点根据其属于基础图还是模体的不同空间位置进行标注。</p>
+        <p><strong>2) BA-Community：</strong>一个节点分类数据集，包含 8 种不同的标签。对于每个图，它通过组合两个 BA-shapes 图并随机添加边得到。节点标签由 BA-shapes 图的归属及其结构位置决定。</p>
+        <p><strong>3) Tree-Cycle：</strong>一个节点分类数据集，包含 2 种不同的标签。对于每个图，它由一个深度为 8 的平衡二叉树和一个六节点环模体组成。这两个部分随机连接。模体中节点的标签为 1，其余节点为 0。</p>
+        <p><strong>4) Tree-Grids：</strong>一个节点分类数据集，包含 2 种不同的标签。它与 Tree-Cycle 数据集相同，只是 Tree-Grids 使用九节点网格模体代替环模体。</p>
+        <p><strong>5) BA-2Motifs：</strong>一个图分类数据集，包含 2 种不同的图标签。共有 800 个图，每个图通过将不同模体（如房子状模体和五节点环模体）附着到 BA 基础图上得到。不同图根据模体类型进行标注。</p>
+      </div>
+    </div>
+
+    <div class="pair">
+      <div class="en"><p>Note that in these datasets, all node features are initialized as vectors containing all 1s. The trained GNNs models are expected to capture graph structures to make predictions. Then based on the rules of building each dataset, we can analyze the explanation results. For example, in the BA-2Motifs dataset, we can study whether the explanations can capture the motif structures. However, synthetic datasets only contain simple relationships between graphs and labels, which may be not enough for comprehensive evaluations.</p></div>
+      <div class="zh"><p>注意，在这些数据集中，所有节点特征都被初始化为全 1 向量。训练好的 GNN 模型期望通过捕捉图结构来进行预测。然后，根据每个数据集的构建规则，我们可以分析解释结果。例如，在 BA-2Motifs 数据集中，我们可以研究解释能否捕捉模体结构。然而，合成数据集只包含图与标签之间的简单关系，可能不足以进行全面评估。</p></div>
+    </div>
+
+    <h4 class="sub4">7.1.2 Sentiment graph data<span class="zh">7.1.2 情感图数据</span></h4>
+    <div class="pair">
+      <div class="en"><p>Traditional graph datasets are challenging to understand since humans only have limited domain knowledge. It raises the need of building human-understandable graph datasets. Text data can be a proper choice for graph explanation tasks since they consist of words and phrases with understandable semantic meanings. Then the explanation results can be easily evaluated by humans. Hence, we build three sentiment graph datasets based on text sentiment analysis data, including SST2 <a href="#r72">[72]</a>, SST5 <a href="#r77">[77]</a>, and Twitter <a href="#r78">[78]</a> datasets.</p></div>
+      <div class="zh"><p>传统图数据集难以理解，因为人类只有有限的领域知识。这引发了对构建人类可理解的图数据集的需求。文本数据可以成为图解释任务的合适选择，因为它们由具有可理解语义意义的单词和短语组成。这样，解释结果就可以很容易地由人类评估。因此，我们基于文本情感分析数据构建了三个情感图数据集，包括 SST2 <a href="#r72">[72]</a>、SST5 <a href="#r77">[77]</a> 和 Twitter <a href="#r78">[78]</a> 数据集。</p></div>
+    </div>
+
+    <div class="pair">
+      <div class="en"><p>First, for each sentence, we convert it to a graph that each node represents a word while the edges reflect the relationships between different words. Specifically, we employ the Biaffine parser <a href="#r79">[79]</a> to extract word dependencies. We show an example of the generated sentiment graph in Figure 5. Note that the graph edges are directed but the edge labels are ignored since most GNNs cannot capture edge label information. Next, we employ BERT <a href="#r80">[80]</a> to obtain the word embeddings and such embeddings are used as initial embeddings of graph nodes. Specifically, we use a pre-trained twelve-layer base BERT model to extract a 768-dimension feature vector for each word.</p></div>
+      <div class="zh"><p>首先，对于每个句子，我们将其转换为图，每个节点代表一个单词，边反映不同单词之间的关系。具体来说，我们使用 Biaffine 解析器 <a href="#r79">[79]</a> 提取单词依赖关系。图 5 展示了一个生成的情感图示例。注意，图边是有向的，但边的标签被忽略，因为大多数 GNN 无法捕捉边标签信息。接下来，我们使用 BERT <a href="#r80">[80]</a> 获得单词嵌入，这些嵌入被用作图节点的初始嵌入。具体来说，我们使用预训练的十二层基础 BERT 模型为每个单词提取一个 768 维的特征向量。</p></div>
+    </div>
+
+    <figure class="blockfig">
+      <div class="figbody">
+        <div class="pipe" style="gap:2px 6px;">
+          <span class="pnode small" style="border:none;background:transparent;color:var(--ink-3)">the → director → like → playing → some → classic → music</span>
+          <span class="pnode small" style="border:none;background:transparent;color:var(--ink-3)">det / nsubj / xcomp / obj / det / amod（依存关系，方向被忽略）</span>
+        </div>
+      </div>
+      <figcaption>Fig. 5. A data example of our graph sentiment datasets. Each node represents a word while edges indicates the relationship between the words. Note that edges are directed but their labels are ignored.<span class="cap-zh">图 5. 我们图情感数据集的一个数据示例。每个节点代表一个单词，边表示单词之间的关系。注意，边是有向的，但其标签被忽略。</span></figcaption>
+    </figure>
+
+    <div class="pair">
+      <div class="en"><p>We build three sentiment graph datasets, known as Graph-SST2, Graph-SST5, and Graph-Twitter. They are now publicly available and can be directly used to study different explanation techniques <a href="https://github.com/divelab/DIG/tree/main/dig/xgraph/datasets" target="_blank" rel="noopener">[1]</a>. The statistics and properties of these datasets are reported in Table 2. We report the prediction accuracies of two-layer GNNs on these datasets, including GCNs, GATs, and GINs. In addition, we also show the fine-tuned accuracies of a pre-trained twelve-layer base BERT <a href="#r80">[80]</a> on the original sentiment datasets. Since the results of BERT are obtained by fine-tuning the model and word embeddings, it is expected to perform better than the GNN models without finetuned node embeddings. Notably, we choose to use the word embeddings as the node embeddings without finetuning because finetuning may encode the label information into the word embeddings, which affect the structural information captured by GNNs and the final explanations. Hence, we believe these datasets are reasonable choices for building graph models to explain. Based on the semantic meaning of different words and the sentiment labels, we can study whether the explanations can identify the words with key meanings and the relationships among different words.</p></div>
+      <div class="zh"><p>我们构建了三个情感图数据集，分别称为 Graph-SST2、Graph-SST5 和 Graph-Twitter。它们现已公开可用，可直接用于研究不同的解释技术 <a href="https://github.com/divelab/DIG/tree/main/dig/xgraph/datasets" target="_blank" rel="noopener">[1]</a>。这些数据集的统计数据和属性见表 2。我们报告了这些数据集上两层 GNN（包括 GCN、GAT 和 GIN）的预测准确率。此外，我们还展示了预训练的十二层基础 BERT <a href="#r80">[80]</a> 在原始情感数据集上的微调准确率。由于 BERT 的结果是通过微调模型和单词嵌入获得的，预计其表现会优于未微调节点嵌入的 GNN 模型。值得注意的是，我们选择不微调单词嵌入而直接将其用作节点嵌入，因为微调可能会将标签信息编码进单词嵌入，从而影响 GNN 捕捉到的结构信息和最终解释。因此，我们认为这些数据集是构建可解释图模型的合理选择。基于不同单词的语义意义和情感标签，我们可以研究解释能否识别具有关键意义的单词以及不同单词之间的关系。</p></div>
+    </div>
+
+    <div class="tablewrap">
+      <table class="tbl">
+        <colgroup><col style="width:26%"><col style="width:24.7%"><col style="width:24.7%"><col style="width:24.6%"></colgroup>
+        <thead>
+          <tr>
+            <th>Dataset<span class="zh">数据集</span></th>
+            <th>Graph-SST2</th>
+            <th>Graph-SST5</th>
+            <th>Graph-Twitter</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td># of classes<span class="zh">类别数</span></td><td>2</td><td>5</td><td>3</td></tr>
+          <tr><td># of features<span class="zh">特征数</span></td><td>768</td><td>768</td><td>768</td></tr>
+          <tr><td>Avg. # of nodes<span class="zh">平均节点数</span></td><td>10.199</td><td>19.849</td><td>21.103</td></tr>
+          <tr><td># of train graphs<span class="zh">训练图数</span></td><td>67,349</td><td>8,544</td><td>4,998</td></tr>
+          <tr><td># of val. graphs<span class="zh">验证图数</span></td><td>872</td><td>1,101</td><td>1,250</td></tr>
+          <tr><td># of test graphs<span class="zh">测试图数</span></td><td>1,821</td><td>2,210</td><td>692</td></tr>
+          <tr><td>GCN accuracy<span class="zh">GCN 准确率</span></td><td>0.892</td><td>0.443</td><td>0.614</td></tr>
+          <tr><td>GAT accuracy<span class="zh">GAT 准确率</span></td><td>0.901</td><td>0.462</td><td>0.601</td></tr>
+          <tr><td>GIN accuracy<span class="zh">GIN 准确率</span></td><td>0.873</td><td>0.463</td><td>0.624</td></tr>
+          <tr><td>BERT accuracy<span class="zh">BERT 准确率</span></td><td>0.912</td><td>0.532</td><td>0.736</td></tr>
+        </tbody>
+      </table>
+      <div class="tblnote">
+        <strong>TABLE 2</strong> · Statistics and properties of our sentiment graph datasets. We report the prediction accuracies of three GNN models on our datasets. Note that “BERT accuracy” denotes the fine-tuning results of a pre-trained twelve-layer base BERT using original sentence data.
+        <span class="zh"><strong>表 2</strong> · 我们情感图数据集的统计数据与属性。我们报告了三种 GNN 模型在这些数据集上的预测准确率。注意，“BERT 准确率”表示使用原始句子数据微调预训练十二层基础 BERT 的结果。</span>
+      </div>
+    </div>
+
+    <h4 class="sub4">7.1.3 Molecule data<span class="zh">7.1.3 分子数据</span></h4>
+    <div class="pair">
+      <div class="en"><p>Molecular datasets are also widely used in explanation tasks, such as MUTAG <a href="#r81">[81]</a>, BBBP <a href="#r82">[82]</a>, and Tox21 <a href="#r83">[83]</a>.</p></div>
+      <div class="zh"><p>分子数据集也广泛应用于解释任务，例如 MUTAG <a href="#r81">[81]</a>、BBBP <a href="#r82">[82]</a> 和 Tox21 <a href="#r83">[83]</a>。</p></div>
+    </div>
+    <div class="pair">
+      <div class="en"><p>Each graph in such datasets corresponds to a molecule where nodes represent atoms and edges are the chemical bonds. The labels of molecular graphs are generally determined by the chemical functionalities or properties of the molecules. Employing such datasets for explanation tasks requires domain knowledge, such as what chemical groups are discriminative for their functionalities. For example, in the dataset MUTAG, different graphs are labeled based on their mutagenic effects on a bacterium. In addition, it is known that carbon rings and NO₂ chemical groups may lead to mutagenic effects <a href="#r81">[81]</a>. Then we can study whether the explanation can identify such patterns for the corresponding class.</p></div>
+      <div class="zh"><p>此类数据集中的每个图对应一个分子，节点代表原子，边是化学键。分子图的标签通常由分子的化学官能团或性质决定。在此类数据集上执行解释任务需要领域知识，例如哪些化学基团对其功能具有判别性。例如，在 MUTAG 数据集中，不同的图根据其对一种细菌的致突变效应进行标注。此外，已知碳环和 NO₂ 化学基团可能导致致突变效应 <a href="#r81">[81]</a>。那么，我们可以研究解释能否为相应的类别识别出此类模式。</p></div>
+    </div>
+
+    <h3 class="sub" id="sec-7-2">7.2 Evaluation Metrics<span class="zh">7.2 评估指标</span></h3>
+    <div class="pair">
+      <div class="en"><p>Even though visualization results can provide an insightful understanding regarding whether the explanations are reasonable to humans, such evaluations are not fully trustable due to the lack of ground truths. In addition, to compare different explanation methods, humans need to study the results for each input example, which is time-consuming. Furthermore, human evaluations are highly dependent on their subjective understanding, which is not fair enough. Hence, evaluation metrics are crucial for studying explanation methods. Good metrics should evaluate the results from the model's perspective, such as whether the explanations are faithful to the model <a href="#r84">[84]</a>, <a href="#r85">[85]</a>. In this section, we introduce several recently proposed evaluation metrics for explanation tasks.</p></div>
+      <div class="zh"><p>尽管可视化结果能够为解释对人类而言是否合理提供有洞察力的理解，但由于缺乏真值，此类评估并不完全可信。此外，为了比较不同的解释方法，人类需要研究每个输入样本的结果，这非常耗时。再者，人工评估高度依赖主观理解，不够公平。因此，评估指标对于研究解释方法至关重要。好的指标应从模型的角度评估结果，例如解释是否忠实于模型 <a href="#r84">[84]</a>、<a href="#r85">[85]</a>。在本节中，我们介绍几种近期提出的用于解释任务的评估指标。</p></div>
+    </div>
+
+    <h4 class="sub4">7.2.1 Fidelity<span class="zh">7.2.1 保真度（Fidelity）</span></h4>
+    <div class="pair">
+      <div class="en"><p>First, the explanations should be faithful to the model. They should identify input features that are important for the model, not our humans. To evaluate this, the Fidelity+ <a href="#r55">[55]</a> metric is recently proposed. Intuitively, if important input features (nodes/edges/node features) identified by explanation techniques are discriminative to the model, the predictions should change significantly when these features are removed. Hence, Fidelity+ is defined as the difference of accuracy (or predicted probability) between the original predictions and the new predictions after masking out important input features <a href="#r55">[55]</a>, <a href="#r86">[86]</a>.</p></div>
+      <div class="zh"><p>首先，解释应当忠实于模型。它们应当识别对模型重要的输入特征，而非对人类重要。为评估这一点，近期提出了 Fidelity+ <a href="#r55">[55]</a> 指标。直观地说，如果解释技术识别出的重要输入特征（节点/边/节点特征）对模型具有判别性，那么当这些特征被移除时，预测应当显著改变。因此，Fidelity+ 定义为遮蔽重要输入特征后，原始预测与新预测之间准确率（或预测概率）的差异 <a href="#r55">[55]</a>、<a href="#r86">[86]</a>。</p></div>
+    </div>
+
+    <div class="pair">
+      <div class="en"><p>Formally, let <i>G</i>ᵢ denote the i-th input graph and f(·) denote the GNN classifier to be explained. The prediction result of this graph is represented as ŷᵢ = argmax f(<i>G</i>ᵢ). Then its explanations can be considered as a hard importance map mᵢ, where each element is 0 or 1 to indicate if the corresponding feature is important. Note that for methods like ZORRO <a href="#r56">[56]</a> and Causal Screening <a href="#r58">[58]</a>, the generated explanations are discrete masks, which can be directly used as the importance map. In addition, for methods like GNNExplainer <a href="#r46">[46]</a> and GraphLime <a href="#r61">[61]</a>, the importance scores are continuous values, then the importance map mᵢ can be obtained by normalization and thresholding or ranking. Finally, the Fidelity+ score of prediction accuracy can be computed as</p></div>
+      <div class="zh"><p>形式化地，设 <i>G</i>ᵢ 表示第 i 个输入图，f(·) 表示待解释的 GNN 分类器。该图的预测结果表示为 ŷᵢ = argmax f(<i>G</i>ᵢ)。其解释可被视为一个硬重要性映射 mᵢ，其中每个元素为 0 或 1，指示相应特征是否重要。注意，对于 ZORRO <a href="#r56">[56]</a> 和 Causal Screening <a href="#r58">[58]</a> 等方法，生成的解释是离散掩码，可直接用作重要性映射。此外，对于 GNNExplainer <a href="#r46">[46]</a> 和 GraphLime <a href="#r61">[61]</a> 等方法，重要性分数是连续值，则可通过归一化加阈值化或排序获得重要性映射 mᵢ。最后，预测准确率的 Fidelity+ 分数可按如下方式计算：</p></div>
+    </div>
+
+    <div class="formula">
+      <span class="fnum">(1)</span>
+      <div class="flabel">Fidelity+（准确率版本 · accuracy version）</div>
+      <div class="feq">Fidelity+<sup>acc</sup> = 1/N · Σ<sub>i=1..N</sub> ( 𝟙(ŷ<sub>i</sub> = y<sub>i</sub>) − 𝟙(ŷ<sub>i</sub><sup>1−m<sub>i</sub></sup> = y<sub>i</sub>) )</div>
+      <div class="fdesc"><span class="en-only">where yᵢ is the original prediction of graph i and N is the number of graphs. Here 1−mᵢ means the complementary mask that removes the important input features and ŷᵢ<sup>1−mᵢ</sup> is the prediction when feeding the new graph into trained GNN f(·). The indicator function 𝟙(ŷᵢ = yᵢ) returns 1 if ŷᵢ and yᵢ are equal and returns 0 otherwise. Note that the Fidelity+<sup>acc</sup> metric studies the change of prediction accuracy. By focusing on the predicted probability, the Fidelity+ of probability can be defined as</span><span class="zh">其中 yᵢ 是图 i 的原始预测，N 是图的数目。这里 1−mᵢ 表示移除重要输入特征的互补掩码，ŷᵢ<sup>1−mᵢ</sup> 是将新图输入训练好的 GNN f(·) 时得到的预测。指示函数 𝟙(ŷᵢ = yᵢ) 在 ŷᵢ 与 yᵢ 相等时返回 1，否则返回 0。注意，Fidelity+<sup>acc</sup> 指标研究预测准确率的变化。通过关注预测概率，概率版本的 Fidelity+ 可定义为：</span></div>
+    </div>
+
+    <div class="formula">
+      <span class="fnum">(2)</span>
+      <div class="flabel">Fidelity+（概率版本 · probability version）</div>
+      <div class="feq">Fidelity+<sup>prob</sup> = 1/N · Σ<sub>i=1..N</sub> ( f(<i>G</i><sub>i</sub>)<sub>y<sub>i</sub></sub> − f(<i>G</i><sub>i</sub><sup>1−m<sub>i</sub></sup>)<sub>y<sub>i</sub></sub> )</div>
+      <div class="fdesc"><span class="en-only">where <i>G</i>ᵢ<sup>1−mᵢ</sup> represents the new graph obtained by keeping features of graph i based on the complementary mask 1−mᵢ. Note that Fidelity+<sup>prob</sup> monitors the change of predicted probability, which is more sensitive than Fidelity+<sup>acc</sup>. For both metrics, higher values indicate better explanation results and more discriminative features are identified.</span><span class="zh">其中 <i>G</i>ᵢ<sup>1−mᵢ</sup> 表示根据互补掩码 1−mᵢ 保留图 i 特征所得到的新图。注意，Fidelity+<sup>prob</sup> 监测预测概率的变化，比 Fidelity+<sup>acc</sup> 更敏感。对这两个指标而言，数值越高表示解释结果越好、识别出的特征越具判别性。</span></div>
+    </div>
+
+    <div class="pair">
+      <div class="en"><p>The Fidelity+ metric studies the prediction change by removing important nodes/edges/node feature. In contrast, the metric Fidelity− studies prediction change by keeping important input features and removing unimportant features. Intuitively, important features should contain discriminative information so that they should lead to similar predictions as the original predictions even unimportant features are removed. Formally, the metric Fidelity− can be computed as</p></div>
+      <div class="zh"><p>Fidelity+ 指标通过移除重要节点/边/节点特征来研究预测变化。相比之下，Fidelity− 指标通过保留重要输入特征并移除不重要特征来研究预测变化。直观地说，重要特征应当包含判别性信息，因此即使移除了不重要特征，也应产生与原始预测相似的预测。形式化地，Fidelity− 指标可按如下方式计算：</p></div>
+    </div>
+
+    <div class="formula">
+      <span class="fnum">(3) (4)</span>
+      <div class="flabel">Fidelity−（准确率版本与概率版本 · accuracy &amp; probability versions）</div>
+      <div class="feq">Fidelity−<sup>acc</sup> = 1/N · Σ<sub>i=1..N</sub> ( 𝟙(ŷ<sub>i</sub> = y<sub>i</sub>) − 𝟙(ŷ<sub>i</sub><sup>m<sub>i</sub></sup> = y<sub>i</sub>) )　　Fidelity−<sup>prob</sup> = 1/N · Σ<sub>i=1..N</sub> ( f(<i>G</i><sub>i</sub>)<sub>y<sub>i</sub></sub> − f(<i>G</i><sub>i</sub><sup>m<sub>i</sub></sup>)<sub>y<sub>i</sub></sub> )</div>
+      <div class="fdesc"><span class="en-only">where <i>G</i>ᵢ<sup>mᵢ</sup> is the new graph when keeping important features of <i>G</i>ᵢ based on explanation mᵢ and ŷᵢ<sup>mᵢ</sup> is the new prediction. Note that for both Fidelity−<sup>acc</sup> and Fidelity−<sup>prob</sup>, lower values indicate less important information are removed so that the explanation results are better.</span><span class="zh">其中 <i>G</i>ᵢ<sup>mᵢ</sup> 是根据解释 mᵢ 保留 <i>G</i>ᵢ 重要特征后得到的新图，ŷᵢ<sup>mᵢ</sup> 是新预测。注意，对于 Fidelity−<sup>acc</sup> 和 Fidelity−<sup>prob</sup>，数值越低表示被移除的重要信息越少，解释结果越好。</span></div>
+    </div>
+
+    <h4 class="sub4">7.2.2 Sparsity<span class="zh">7.2.2 稀疏度（Sparsity）</span></h4>
+    <div class="pair">
+      <div class="en"><p>Second, good explanations should be sparse, which means they should capture the most important input features and ignore the irrelevant ones. The metric Sparsity measures such a property. Specifically, it measures the fraction of features selected as important by explanation methods <a href="#r55">[55]</a>.</p></div>
+      <div class="zh"><p>其次，好的解释应当是稀疏的，这意味着它们应当捕捉最重要的输入特征并忽略无关特征。Sparsity 指标衡量这一性质。具体来说，它衡量解释方法选为重要的特征所占的比例 <a href="#r55">[55]</a>。</p></div>
+    </div>
+
+    <div class="formula">
+      <span class="fnum">(5)</span>
+      <div class="flabel">Sparsity（稀疏度）</div>
+      <div class="feq">Sparsity = 1/N · Σ<sub>i=1..N</sub> ( 1 − |m<sub>i</sub>| / |M<sub>i</sub>| )</div>
+      <div class="fdesc"><span class="en-only">where |mᵢ| denotes the number of important input features (nodes/edges/node features) identified in mᵢ and |Mᵢ| means the total number of features in <i>G</i>ᵢ. Note that higher values indicate the explanations are more sparse and tend to only capture the most important input information.</span><span class="zh">其中 |mᵢ| 表示 mᵢ 中识别出的重要输入特征（节点/边/节点特征）数量，|Mᵢ| 表示 <i>G</i>ᵢ 中的特征总数。注意，数值越高表示解释越稀疏，倾向于只捕捉最重要的输入信息。</span></div>
+    </div>
+
+    <h4 class="sub4">7.2.3 Stability<span class="zh">7.2.3 稳定性（Stability）</span></h4>
+    <div class="pair">
+      <div class="en"><p>In addition, good explanations should be stable. Intuitively, when small changes are applied to the input without affecting the predictions, the explanations should remain similar. The recent proposed Stability metric measures whether an explanation method is stable <a href="#r87">[87]</a>. Given an input graph <i>G</i>ᵢ, its explanations mᵢ is regarded as the ground truth. Then the input graph <i>G</i>ᵢ is perturbed by small changes, such as attaching new nodes/edges, to obtain a new graph <i>G</i>̂ᵢ. Note that <i>G</i>̂ᵢ and <i>G</i>ᵢ are required to have the same predictions. Then the explanations of <i>G</i>̂ᵢ is obtained, denoted as m̂ᵢ. By comparing the difference between mᵢ and m̂ᵢ, we can compute the Stability score. Note that lower values indicate the explanation technique is more stable and more robust to noisy information. In addition, since graph representations are sensitive, selecting a proper amount of perturbations should be carefully.</p></div>
+      <div class="zh"><p>此外，好的解释应当是稳定的。直观地说，当输入发生不影响预测的微小变化时，解释应保持相似。近期提出的 Stability 指标衡量解释方法是否稳定 <a href="#r87">[87]</a>。给定一个输入图 <i>G</i>ᵢ，其解释 mᵢ 被视为真值。然后通过微小变化（如添加新节点/边）扰动输入图 <i>G</i>ᵢ，得到新图 <i>G</i>̂ᵢ。注意，<i>G</i>̂ᵢ 与 <i>G</i>ᵢ 被要求具有相同的预测。然后获得 <i>G</i>̂ᵢ 的解释，记为 m̂ᵢ。通过比较 mᵢ 与 m̂ᵢ 之间的差异，可以计算 Stability 分数。注意，数值越低表示解释技术越稳定、对噪声信息越鲁棒。此外，由于图表示是敏感的，应当谨慎选择适当的扰动数量。</p></div>
+    </div>
+
+    <h4 class="sub4">7.2.4 Accuracy<span class="zh">7.2.4 准确率（Accuracy）</span></h4>
+    <div class="pair">
+      <div class="en"><p>Furthermore, the Accuracy metric is proposed for synthetic datasets <a href="#r16">[16]</a>, <a href="#r87">[87]</a>. In synthesis datasets, even though it is unknown whether the GNNs make predictions in our expected way, the rules of building these datasets, such as graph motifs, can be used as reasonable approximations of the ground truth. Then for any input graph, we can compare its explanations with such ground truth. For example, when studying important edge nodes, we can study the matching rate for important edges in explanations compared with those in the ground truths. The common metrics for such comparisons include general accuracy, F1 score, ROC-AUC score. Note that higher values indicate the explanations are closer to ground truths and can be considered as better results. In addition, the Accuracy metric cannot be applied to real-world datasets due to the lack of ground truths.</p></div>
+      <div class="zh"><p>此外，Accuracy 指标是为合成数据集提出的 <a href="#r16">[16]</a>、<a href="#r87">[87]</a>。在合成数据集中，即使不知道 GNN 是否以我们期望的方式做出预测，构建这些数据集的规则（如图模体）也可用作真值的合理近似。那么对于任何输入图，我们都可以将其解释与这样的真值进行比较。例如，在研究重要边时，我们可以研究解释中的重要边与真值中的重要边的匹配率。此类比较的常用指标包括一般准确率、F1 分数、ROC-AUC 分数。注意，数值越高表示解释越接近真值，可视为更好的结果。此外，由于缺乏真值，Accuracy 指标无法应用于现实世界数据集。</p></div>
+    </div>
+
+    <h4 class="sub4">7.2.5 Discussions<span class="zh">7.2.5 讨论</span></h4>
+    <div class="pair">
+      <div class="en"><p>It is noteworthy that different metrics should be combined to evaluate explanation results. For example, Sparsity and Fidelity+/Fidelity− are highly correlated. When the explanation results are soft values, the Sparsity is determined by a threshold value. Intuitively, larger threshold values tend to identify fewer features as important and hence increase the Sparsity score and decrease the Fidelity+ score. Hence, to fairly compare different explanation methods, we suggest comparing their Fidelity+ scores with the same level of Sparsity scores. One possible way is to select a fixed percentage of input features as important, and then compare their Fidelity+ or Fidelity− scores.</p></div>
+      <div class="zh"><p>值得注意的是，应当组合不同的指标来评估解释结果。例如，Sparsity 与 Fidelity+/Fidelity− 高度相关。当解释结果为软值时，Sparsity 由阈值决定。直观地说，阈值越大，识别为重要的特征越少，因此 Sparsity 分数升高而 Fidelity+ 分数降低。因此，为公平比较不同的解释方法，我们建议在相同的 Sparsity 水平下比较它们的 Fidelity+ 分数。一种可行的方法是选择固定比例的输入特征作为重要特征，然后比较它们的 Fidelity+ 或 Fidelity− 分数。</p></div>
+    </div>
+
+    <div class="pair">
+      <div class="en"><p>In addition, there are several other metrics to evaluate explanation results, such as Contrastivity <a href="#r55">[55]</a> and Consistency <a href="#r87">[87]</a>. The Contrastivity score is based on a strong assumption that the explanations for different classes should be significantly different, which ignores the common patterns among different classes. Meanwhile, the Consistency metric assumes that high-performing model architectures should have consistent explanations. However, different models may capture different relationships even though they achieve competitive performance, especially for large-scale and complex datasets. Hence, we believe such metrics may not be fair enough to evaluate explanation results and they are not listed as recommended metrics.</p></div>
+      <div class="zh"><p>此外，还有其他一些评估解释结果的指标，例如对比性（Contrastivity）<a href="#r55">[55]</a> 和一致性（Consistency）<a href="#r87">[87]</a>。对比性分数基于一个强假设：不同类别的解释应当显著不同，这忽略了不同类别之间的共同模式。与此同时，一致性指标假设高性能的模型架构应当具有一致的解释。然而，不同的模型即使达到有竞争力的性能，也可能捕捉不同的关系，尤其是在大规模和复杂的数据集上。因此，我们认为这些指标在评估解释结果时可能不够公平，故未将它们列为推荐指标。</p></div>
+    </div>
+  </section>
+
+  <!-- ===== 8 实验研究 ===== -->
+  <section class="block" id="sec-8">
+    <span class="secnum">SECTION 8 · 第 8 节</span>
+    <h2 class="sec">Experimental Studies<span class="zh">实验研究</span></h2>
+    <div class="pair">
+      <div class="en"><p>To better understand different explanation techniques, we conduct experiments to compare different methods and study our evaluation metrics. We provide a benchmark that can be used to reproduce our reported results and conduct experiments to compare different techniques for future studies <a href="https://github.com/divelab/DIG/tree/dig/benchmarks/xgraph" target="_blank" rel="noopener">[2]</a>.</p></div>
+      <div class="zh"><p>为了更好地理解不同的解释技术，我们开展了实验来比较不同方法并研究我们的评估指标。我们提供了一个基准，可用于复现我们报告的结果，并为未来的研究开展实验以比较不同的技术 <a href="https://github.com/divelab/DIG/tree/dig/benchmarks/xgraph" target="_blank" rel="noopener">[2]</a>。</p></div>
+    </div>
+
+    <h3 class="sub">8.1 Method Comparisons with Fidelity<span class="zh">8.1 基于保真度的方法对比</span></h3>
+    <div class="pair">
+      <div class="en"><p>We first compare several GNN explanation techniques using the Fidelity and Sparsity metrics. Specifically, we compare the Fidelity scores under different Sparsity levels. Note that here we employ the probability version Fidelity+<sup>prob</sup> and Fidelity−<sup>prob</sup> as the example. To provide a comprehensive study, we employ six different datasets; these are, Graph-SST2, Graph-SST5, Graph-Twitter, BBBP, BA-2Motifs, and BA-Shapes, which include both graph classification and node classification tasks, both real-world and synthetic data. In addition, we use GNNs as the graph model to compare different techniques. The results are reported in Figure 6 and 7. Note that GNN-GI is a simplified version of GNN-LRP, which is developed based on the gradient × input rule. DeepLift <a href="#r64">[64]</a> is a popular decomposition method in the computer vision domain and we also extend it to explain deep graph models. In addition, since Grad-CAM cannot be directly applied to node classification model, we ignore it for the BA-Shapes dataset.</p></div>
+      <div class="zh"><p>我们首先使用 Fidelity 和 Sparsity 指标比较若干 GNN 解释技术。具体来说，我们比较不同稀疏度水平下的 Fidelity 分数。注意，这里我们以概率版本的 Fidelity+<sup>prob</sup> 和 Fidelity−<sup>prob</sup> 为例。为提供全面的研究，我们使用了六个不同的数据集：Graph-SST2、Graph-SST5、Graph-Twitter、BBBP、BA-2Motifs 和 BA-Shapes，它们同时涵盖图分类与节点分类任务、现实世界与合成数据。此外，我们使用 GNN 作为图模型来比较不同技术。结果如图 6 和图 7 所示。注意，GNN-GI 是 GNN-LRP 的简化版本，基于梯度 × 输入规则开发。DeepLift <a href="#r64">[64]</a> 是计算机视觉领域流行的分解方法，我们也将其扩展以解释深度图模型。此外，由于 Grad-CAM 无法直接应用于节点分类模型，我们在 BA-Shapes 数据集上忽略了它。</p></div>
+    </div>
+
+    <figure class="blockfig">
+      <div class="figbody">
+        <div class="pipe" style="justify-content:space-around;">
+          <span class="pnode small">SubgraphX · Grad-CAM · GNN-GI · GNNExplainer · GNN-LRP · DeepLift · PGExplainer</span>
+        </div>
+      </div>
+      <figcaption>Fig. 6. The Fidelity+ comparisons between different GNN explanation techniques under different Sparsity levels.<span class="cap-zh">图 6. 不同 GNN 解释技术在不同稀疏度水平下的 Fidelity+ 比较。（原图为折线图，数据见正文及表 3）</span></figcaption>
+    </figure>
+    <figure class="blockfig">
+      <div class="figbody">
+        <div class="pipe" style="justify-content:space-around;">
+          <span class="pnode small">SubgraphX · Grad-CAM · GNN-GI · GNNExplainer · GNN-LRP · DeepLift · PGExplainer</span>
+        </div>
+      </div>
+      <figcaption>Fig. 7. The Fidelity− comparisons between different GNN explanation techniques under different Sparsity levels.<span class="cap-zh">图 7. 不同 GNN 解释技术在不同稀疏度水平下的 Fidelity− 比较。（原图为折线图，数据见正文及表 4）</span></figcaption>
+    </figure>
+
+    <div class="pair">
+      <div class="en"><p>In Figure 6 we focus on the Fidelity+ metric, which measures the prediction probability drop when important features are removed. Higher Fidelity+ scores indicate the identified features are more important for the GNN model. Obviously, SubgraphX outperforms the other methods significantly and consistently, showing that subgraph-level explanations are more desired for GNN models. In addition, the flow-based techniques, GNN-GI and GNN-LRP, generally obtain higher Fidelity+ scores than GNNExplainer and PGExplainer. Based on these facts, we believe the explanations considering structural information are more suitable for explaining GNN models. An interesting finding is that GNNExplainer and PGExplainer perform well on the node classification task (BA-Shapes) but not as expected for the graph classification models. We also observe that the performance of traditional methods, DeepLift and Grad-CAM, are not very stable across different datasets. We believe the main reason is that these two methods are directly migrated from the image domain and lack graph specific designs.</p></div>
+      <div class="zh"><p>在图 6 中，我们关注 Fidelity+ 指标，它衡量移除重要特征时预测概率的下降。Fidelity+ 分数越高，表明识别出的特征对 GNN 模型越重要。显然，SubgraphX 显著且稳定地优于其他方法，表明子图级解释更符合 GNN 模型的需求。此外，基于流的方法 GNN-GI 和 GNN-LRP 通常比 GNNExplainer 和 PGExplainer 获得更高的 Fidelity+ 分数。基于这些事实，我们认为考虑结构信息的解释更适合解释 GNN 模型。一个有趣的发现是，GNNExplainer 和 PGExplainer 在节点分类任务（BA-Shapes）上表现良好，但在图分类模型上却不如预期。我们还观察到，传统方法 DeepLift 和 Grad-CAM 在不同数据集上的性能不太稳定。我们认为主要原因是这两种方法直接迁移自图像领域，缺乏针对图的专门设计。</p></div>
+    </div>
+
+    <div class="pair">
+      <div class="en"><p>In Figure 7 we study the Fidelity− metric, which measures the prediction probability drop when important features are kept and unimportant features are removed. Lower values mean that fewer important features are removed so that the explanations are better. The observations are similar to the results of Fidelity+. SubgraphX still obtains stable and the best results while flow-based techniques, GNN-GI and GNN-LRP, are performing better than the others. In addition, GNNExplainer and PGExplainer still only perform well on the node classification task.</p></div>
+      <div class="zh"><p>在图 7 中，我们研究 Fidelity− 指标，它衡量保留重要特征并移除不重要特征时预测概率的下降。数值越低，表示被移除的重要特征越少，解释越好。观察结果与 Fidelity+ 类似。SubgraphX 仍然获得稳定且最佳的结果，而基于流的方法 GNN-GI 和 GNN-LRP 的表现优于其他方法。此外，GNNExplainer 和 PGExplainer 仍然只在节点分类任务上表现良好。</p></div>
+    </div>
+
+    <div class="pair">
+      <div class="en"><p>From our observations, we believe it is necessary to consider graph structures when developing GNN explanation techniques. In addition, when selecting baselines for future studies, we would recommend that select SubgraphX for all cases, use GNNExplainer and PGExplainer only for node classification datasets, and choose GNN-GI and GNN-LRP only for real-world datasets.</p></div>
+      <div class="zh"><p>根据我们的观察，我们认为在开发 GNN 解释技术时有必要考虑图结构。此外，在为未来研究选择基线时，我们建议在所有情况下选择 SubgraphX，仅在节点分类数据集上使用 GNNExplainer 和 PGExplainer，并仅对现实世界数据集选择 GNN-GI 和 GNN-LRP。</p></div>
+    </div>
+
+    <h3 class="sub">8.2 Study of Fidelity<span class="zh">8.2 Fidelity 研究</span></h3>
+    <div class="pair">
+      <div class="en"><p>We further study our proposed evaluation metric Fidelity with a random designation of feature importance <a href="#r86">[86]</a>. Specifically, we assign the random importance scores to different edges and compare the performance of different methods to this random baseline. It helps answer two questions; these are, is a particular GNN explanation method better than a random guess? and can the evaluation metrics successfully capture the difference between them? Intuitively, good evaluation metrics should demonstrate the performance difference between well-performed models and the random baseline. The results are reported in Table 3 and 4.</p></div>
+      <div class="zh"><p>我们进一步以随机指定特征重要性的方式研究我们所提出的 Fidelity 评估指标 <a href="#r86">[86]</a>。具体来说，我们为不同的边分配随机重要性分数，并将不同方法的性能与此随机基线进行比较。这有助于回答两个问题：某个 GNN 解释方法是否优于随机猜测？评估指标能否成功捕捉它们之间的差异？直观地说，好的评估指标应当展示性能良好的模型与随机基线之间的性能差异。结果见表 3 和表 4。</p></div>
+    </div>
+
+    <div class="pair">
+      <div class="en"><p>We show the Fidelity scores of different techniques with Sparsity levels equal to 0.6 and 0.7. Note that the results that are inferior to the random baseline are denoted with *. We can observe that the Fidelity metrics show that different GNN explanation techniques generally obtain better results than the random guess. Such results indicate the correctness of our proposed Fidelity metrics. Meanwhile, we notice that the results of DeepLift are worse than the random baseline on BA-Shapes and BA-2Motifs datasets. We believe the reason is that DeepLift does not consider graph information and hence is not stable across datasets, which is consistent with our findings from Figure 6 and 7. In addition, GNN-GI is also not performing well on these two datasets. One possible reason is GNN-GI is developed based on the gradient × input rule so its results are highly depending on the properties of input graphs. Furthermore, all methods are performing better than the random baseline for both Fidelity+ and Fidelity− metrics on our proposed sentiment graph datasets. It indicates that our proposed datasets are suitable and stable to evaluate different GNN explanation techniques.</p></div>
+      <div class="zh"><p>我们展示了不同技术在稀疏度等于 0.6 和 0.7 时的 Fidelity 分数。注意，劣于随机基线的结果用 * 标注。我们可以观察到，Fidelity 指标显示不同的 GNN 解释技术通常比随机猜测获得更好的结果。这些结果说明我们所提 Fidelity 指标的正确性。与此同时，我们注意到 DeepLift 在 BA-Shapes 和 BA-2Motifs 数据集上的结果劣于随机基线。我们认为原因是 DeepLift 不考虑图信息，因此在各数据集上不稳定，这与我们在图 6 和图 7 中的发现一致。此外，GNN-GI 在这两个数据集上表现也不佳。一个可能的原因是 GNN-GI 基于梯度 × 输入规则开发，其结果高度依赖于输入图的性质。再者，在我们提出的情感图数据集上，所有方法在 Fidelity+ 和 Fidelity− 指标上都优于随机基线。这表明我们提出的数据集适合且稳定地用于评估不同的 GNN 解释技术。</p></div>
+    </div>
+
+    <div class="tablewrap">
+      <table class="tbl">
+        <colgroup><col style="width:16%"><col style="width:14%"><col style="width:14%"><col style="width:14%"><col style="width:14%"><col style="width:14%"><col style="width:14%"></colgroup>
+        <thead>
+          <tr><th>Methods<span class="zh">方法</span></th><th>Graph-Twitter<br><small>Sparsity=0.7</small></th><th>Graph-SST2<br><small>Sparsity=0.7</small></th><th>Graph-SST5<br><small>Sparsity=0.7</small></th><th>BBBP<br><small>Sparsity=0.6</small></th><th>BA-2Motifs<br><small>Sparsity=0.6</small></th><th>BA-Shapes<br><small>Sparsity=0.6</small></th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Random</td><td>0.1342</td><td>0.0915</td><td>0.1419</td><td>0.1212</td><td>0.4903</td><td>0.1884</td></tr>
+          <tr><td>SubgraphX</td><td>0.2836</td><td>0.3152</td><td>0.2351</td><td>0.4521</td><td>0.8642</td><td>0.3171</td></tr>
+          <tr><td>Grad-CAM</td><td>0.2418</td><td>0.2414</td><td>0.2118</td><td>0.2036</td><td>0.6112</td><td class="na">N/A</td></tr>
+          <tr><td>GNN-GI</td><td>0.2593</td><td>0.2571</td><td>0.2031</td><td>0.3051</td><td>0.0466*</td><td>0.1723*</td></tr>
+          <tr><td>GNNExplainer</td><td>0.1452</td><td>0.0953</td><td>0.1441</td><td>0.1057*</td><td>0.4972</td><td>0.2925</td></tr>
+          <tr><td>PGExplainer</td><td>0.1704</td><td>0.1889</td><td>0.1854</td><td>0.1464</td><td>0.1126*</td><td>0.2015</td></tr>
+          <tr><td>GNN-LRP</td><td>0.1931</td><td>0.1363</td><td>0.1813</td><td>0.0860*</td><td>0.5125</td><td>0.3386</td></tr>
+          <tr><td>DeepLift</td><td>0.2336</td><td>0.2454</td><td>0.1924</td><td>0.3039</td><td>0.2156*</td><td>0.0411*</td></tr>
+        </tbody>
+      </table>
+      <div class="tblnote">
+        <strong>TABLE 3</strong> · The Fidelity+ comparisons between different GNN explanation techniques and the random designation baseline. Results inferior to the random baseline are marked with *.
+        <span class="zh"><strong>表 3</strong> · 不同 GNN 解释技术与随机指定基线之间的 Fidelity+ 比较。劣于随机基线的结果以 * 标注。</span>
+      </div>
+    </div>
+
+    <div class="tablewrap">
+      <table class="tbl">
+        <colgroup><col style="width:16%"><col style="width:14%"><col style="width:14%"><col style="width:14%"><col style="width:14%"><col style="width:14%"><col style="width:14%"></colgroup>
+        <thead>
+          <tr><th>Methods<span class="zh">方法</span></th><th>Graph-Twitter<br><small>Sparsity=0.7</small></th><th>Graph-SST2<br><small>Sparsity=0.7</small></th><th>Graph-SST5<br><small>Sparsity=0.7</small></th><th>BBBP<br><small>Sparsity=0.6</small></th><th>BA-2Motifs<br><small>Sparsity=0.6</small></th><th>BA-Shapes<br><small>Sparsity=0.6</small></th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Random</td><td>0.2825</td><td>0.2745</td><td>0.2961</td><td>0.2168</td><td>0.5394</td><td>0.2567</td></tr>
+          <tr><td>SubgraphX</td><td>−0.1085</td><td>−0.0288</td><td>−0.0298</td><td>−0.0169</td><td>0.0686</td><td>−0.0792</td></tr>
+          <tr><td>Grad-CAM</td><td>−0.0245</td><td>−0.0069</td><td>0.0987</td><td>0.0456</td><td>0.2529</td><td class="na">N/A</td></tr>
+          <tr><td>GNN-GI</td><td>−0.0715</td><td>0.0147</td><td>0.0951</td><td>0.0039</td><td>0.5193</td><td>0.1318</td></tr>
+          <tr><td>GNNExplainer</td><td>0.1848</td><td>0.1992</td><td>0.2471</td><td>0.1647</td><td>0.5337</td><td>−0.0017</td></tr>
+          <tr><td>PGExplainer</td><td>0.0887</td><td>0.0852</td><td>0.1543</td><td>0.1183</td><td>0.0227</td><td>0.0658</td></tr>
+          <tr><td>GNN-LRP</td><td>0.2060</td><td>0.1919</td><td>0.2164</td><td>0.1746</td><td>0.4314</td><td>−0.0026</td></tr>
+          <tr><td>DeepLift</td><td>−0.0382</td><td>−0.0183</td><td>0.0674</td><td>−0.0002</td><td>0.4179</td><td>0.2790*</td></tr>
+        </tbody>
+      </table>
+      <div class="tblnote">
+        <strong>TABLE 4</strong> · The Fidelity− comparisons between different GNN explanation techniques and the random designation baseline. Results inferior to the random baseline are marked with *.
+        <span class="zh"><strong>表 4</strong> · 不同 GNN 解释技术与随机指定基线之间的 Fidelity− 比较。劣于随机基线的结果以 * 标注。</span>
+      </div>
+    </div>
+
+    <h3 class="sub">8.3 Method Comparisons with Accuracy<span class="zh">8.3 基于准确率的方法对比</span></h3>
+    <div class="pair">
+      <div class="en"><p>In this section, we further compare different techniques using the Accuracy metric. Since the Accuracy metric requires the ground truths for GNN explanations, we apply extensive experiments on synthetic datasets. We evaluate different methods using the BA-shapes and BA-Community datasets, which are taken from GNNExplainer <a href="#r46">[46]</a>. Specifically, the ground-truth motifs are converted to ground-truth edge masks and we compute the AUC-ROC score between the edge importance scores provided by different explanation techniques and the ground-truth edge masks. Note that SubgraphX provides subgraph-level explanations, which cannot be converted to soft edge masks. Hence, SubgraphX is not directly comparable in terms of AUC-ROC score and is ignored. In addition, since these two datasets are node classification tasks, Grad-CAM is also ignored. The results are reported in Table 5. We observe that GNN-LRP obtains the highest Accuracy on the BA-shapes dataset and GNNExplainer performs the best on the BA-Community dataset. Overall, we believe GNN-LRP, GNNExplainer, and GNN-GI have competitive performance while PGExplainer is not performing as promising as its original reported results. Our finding regarding PGExplainer is similar to a recent reproducibility work <a href="#r88">[88]</a>. In addition, DeepLift performs the worst on both datasets, which is reasonable because DeepLift does not consider any graph-specific information when providing explanations. Finally, it is noteworthy that the ground truths in synthetic datasets are only reasonable approximations of the ground truth instead of real ground truths.</p></div>
+      <div class="zh"><p>在本节中，我们使用 Accuracy 指标进一步比较不同的技术。由于 Accuracy 指标需要 GNN 解释的真值，我们在合成数据集上开展了大量实验。我们使用来自 GNNExplainer <a href="#r46">[46]</a> 的 BA-shapes 和 BA-Community 数据集评估不同方法。具体来说，将真值模体转换为真值边掩码，并计算不同解释技术提供的边重要性分数与真值边掩码之间的 AUC-ROC 分数。注意，SubgraphX 提供子图级解释，无法转换为软边掩码。因此，SubgraphX 在 AUC-ROC 分数上无法直接比较，被忽略。此外，由于这两个数据集是节点分类任务，Grad-CAM 也被忽略。结果见表 5。我们观察到，GNN-LRP 在 BA-shapes 数据集上获得最高准确率，GNNExplainer 在 BA-Community 数据集上表现最佳。总体而言，我们认为 GNN-LRP、GNNExplainer 和 GNN-GI 具有有竞争力的性能，而 PGExplainer 的表现不如其原始报告的结果。我们关于 PGExplainer 的发现与近期一项可复现性工作 <a href="#r88">[88]</a> 类似。此外，DeepLift 在两个数据集上表现最差，这很合理，因为 DeepLift 在提供解释时不考虑任何图特定信息。最后，值得注意的是，合成数据集中的真值只是真值的合理近似，而非真正的真值。</p></div>
+    </div>
+
+    <h3 class="sub">8.4 Method Comparisons with Stability<span class="zh">8.4 基于稳定性的方法对比</span></h3>
+    <div class="pair">
+      <div class="en"><p>We also compare different methods using the Stability metric. The key idea of Stability is to apply small changes to the input graph without affecting the predictions and measure the difference between explanations. We follow an existing work <a href="#r88">[88]</a> to set up the experiments on BA-shapes and BA-Community datasets. Specifically, for each node, we randomly attach two noise nodes to its L-hop neighbor graph while keeping the node-to-node motifs unchanged. Then we generate 10 input perturbations for each node and obtain the corresponding explanations. For each pair of perturbation and explanation, we evaluate it using the Accuracy metric above. Finally, the Stability score is the absolute value of the averaged Accuracy score change for these 10 input perturbations compared to the original graph. The results are reported in Table 5. Note that since Stability is developed based on Accuracy and these two datasets are node classification datasets, SubgraphX and Grad-CAM are not included. We notice that DeepLift has the best Stability score but its corresponding Accuracy scores are significantly worse. Such results indicate that DeepLift performs not well consistently and stably. We also observe that the method with higher Accuracy tends to have a higher Stability score (note that a lower Stability score means more stable), then it is important to analyze the results considering both stability and a possible way to understand the Stability score is to consider it as the error bar of the Accuracy score. Hence, for those three methods with competitive Accuracy scores, we believe GNN-LRP and GNNExplainer have better performance than GNN-GI in terms of Accuracy and Stability.</p></div>
+      <div class="zh"><p>我们还使用 Stability 指标比较不同方法。Stability 的核心思想是对输入图施加不影响预测的微小变化，并衡量解释之间的差异。我们遵循一项现有工作 <a href="#r88">[88]</a> 在 BA-shapes 和 BA-Community 数据集上设置实验。具体来说，对于每个节点，我们在其 L 跳邻居图上随机附加两个噪声节点，同时保持节点间模体不变。然后为每个节点生成 10 个输入扰动并获得相应的解释。对于每一对扰动与解释，我们使用上述 Accuracy 指标进行评估。最后，Stability 分数是与原始图相比，这 10 个输入扰动的平均 Accuracy 分数变化的绝对值。结果见表 5。注意，由于 Stability 基于 Accuracy 开发，且这两个数据集是节点分类数据集，SubgraphX 和 Grad-CAM 未被纳入。我们注意到 DeepLift 的 Stability 分数最好，但其相应的 Accuracy 分数明显更差。这些结果表明 DeepLift 的表现并不一致和稳定。我们还观察到，Accuracy 较高的方法往往 Stability 分数也较高（注意，Stability 分数越低表示越稳定），因此结合两者分析结果很重要；理解 Stability 分数的一种方式是将它视为 Accuracy 分数的误差棒。因此，对于三个 Accuracy 分数有竞争力的方法，我们认为 GNN-LRP 和 GNNExplainer 在 Accuracy 和 Stability 方面优于 GNN-GI。</p></div>
+    </div>
+
+    <div class="tablewrap">
+      <table class="tbl">
+        <colgroup><col style="width:20%"><col style="width:13.33%"><col style="width:13.33%"><col style="width:13.33%"><col style="width:13.33%"><col style="width:13.33%"><col style="width:13.35%"></colgroup>
+        <thead>
+          <tr><th>Methods<span class="zh">方法</span></th><th>BA-shapes<br>Accuracy<span class="zh">准确率</span></th><th>BA-shapes<br>Stability<span class="zh">稳定性</span></th><th>BA-Community<br>Accuracy<span class="zh">准确率</span></th><th>BA-Community<br>Stability<span class="zh">稳定性</span></th><th></th><th></th></tr>
+        </thead>
+        <tbody>
+          <tr><td>GNN-GI</td><td>0.8369</td><td>0.1361</td><td>0.8291</td><td>0.1723</td><td></td><td></td></tr>
+          <tr><td>GNNExplainer</td><td>0.8786</td><td>0.1721</td><td>0.9194</td><td>0.1820</td><td></td><td></td></tr>
+          <tr><td>PGExplainer</td><td>0.7147</td><td>0.0522</td><td>0.6843</td><td>0.1177</td><td></td><td></td></tr>
+          <tr><td>GNN-LRP</td><td>0.9243</td><td>0.1872</td><td>0.8357</td><td>0.1239</td><td></td><td></td></tr>
+          <tr><td>DeepLift</td><td>0.5698</td><td>0.0432</td><td>0.4190</td><td>0.0842</td><td></td><td></td></tr>
+        </tbody>
+      </table>
+      <div class="tblnote">
+        <strong>TABLE 5</strong> · The Accuracy and Stability comparisons between different GNN explanation techniques.
+        <span class="zh"><strong>表 5</strong> · 不同 GNN 解释技术的准确率与稳定性比较。</span>
+      </div>
+    </div>
+
+    <h3 class="sub">8.5 Dataset Visualizations<span class="zh">8.5 数据集可视化</span></h3>
+    <div class="pair">
+      <div class="en"><p>In this section, we present the visualized results from molecular datasets and our proposed graph sentiment datasets. The results are reported in Figure 8. The left two examples are the visualized explanations from the BBBP <a href="#r82">[82]</a> dataset and both examples are labeled and predicted as positive. Note that a positive label means the molecule has the Blood-Brain-Barrier penetration property. While the CN chain is identified in the first example and the CN ring is captured in the second example, it is challenging for the users to understand the explanations without chemical domain knowledge. It's not clear what is the chemical meaning of these patterns. Hence, we believe such results are less intuitive and human-intelligible for non-experts. The third and fourth examples are from the Graph-SST2 dataset and both are correctly predicted. The third one is negative and the last one is positive. Since each node is associated with a word or a symbol, users can understand the sentiment meaning of each node. Then it is easier to understand the identified explanations. For example, in the third example, the phrase “has nothing fresh” has a clearly negative sentiment. Hence, we believe our proposed graph sentiment datasets are more suitable for evaluating GNN explanation techniques.</p></div>
+      <div class="zh"><p>在本节中，我们展示来自分子数据集和我们提出的图情感数据集的解释可视化结果。结果见图 8。左侧两个示例来自 BBBP <a href="#r82">[82]</a> 数据集的解释可视化，两个示例都被标注并预测为阳性。注意，阳性标签表示分子具有血脑屏障穿透性质。虽然第一个示例中识别出了 CN 链，第二个示例中捕捉到了 CN 环，但在没有化学领域知识的情况下，用户很难理解这些解释。这些模式的化学意义并不清楚。因此，我们认为此类结果对非专家而言不够直观、不易于人类理解。第三和第四个示例来自 Graph-SST2 数据集，两者都被正确预测。第三个是阴性，最后一个是阳性。由于每个节点与一个单词或符号相关联，用户可以理解每个节点的情感含义，因此更容易理解识别出的解释。例如，在第三个示例中，短语“has nothing fresh”具有明显的负面情感。因此，我们认为我们提出的图情感数据集更适合评估 GNN 解释技术。</p></div>
+    </div>
+
+    <figure class="blockfig">
+      <div class="figbody">
+        <div class="pipe" style="justify-content:space-around;">
+          <span class="pnode small">BBBP 分子解释（CN 链 / CN 环）</span>
+          <span class="pnode small">Graph-SST2 文本解释（“has nothing fresh” → 负面）</span>
+        </div>
+      </div>
+      <figcaption>Fig. 8. Visualizations of explanations on the BBBP and Graph-SST2 datasets.<span class="cap-zh">图 8. BBBP 与 Graph-SST2 数据集上的解释可视化。（原图为分子结构与文本词级高亮图）</span></figcaption>
+    </figure>
+  </section>
+
+  <!-- ===== 9 开源库 ===== -->
+  <section class="block" id="sec-9">
+    <span class="secnum">SECTION 9 · 第 9 节</span>
+    <h2 class="sec">An Open-Source Library<span class="zh">开源库</span></h2>
+    <div class="pair">
+      <div class="en"><p>To facilitate research into graph neural networks, we develop an open-source library to study the explainability in GNNs. It is developed as a part of our DIG (Dive into Graphs) library <a href="#r89">[89]</a>, which is a turnkey library for graph deep learning research and now publicly available <a href="https://github.com/divelab/DIG/" target="_blank" rel="noopener">[3]</a>.</p></div>
+      <div class="zh"><p>为促进图神经网络研究，我们开发了一个开源库来研究 GNN 中的可解释性。它是我们 DIG（Dive into Graphs）库 <a href="#r89">[89]</a> 的一部分，DIG 是一个用于图深度学习研究的一站式库，现已公开可用 <a href="https://github.com/divelab/DIG/" target="_blank" rel="noopener">[3]</a>。</p></div>
+    </div>
+
+    <div class="pair">
+      <div class="en"><p>Our library can be directly used to reproduce results of existing GNN explanation methods, develop new algorithms, and conduct evaluations for explanation results. First, in this library, we include the implementations of several existing methods, such as GNNExplainer <a href="#r46">[46]</a>, PGExplainer <a href="#r47">[47]</a>, DeepLIFT <a href="#r64">[64]</a>, GNN-LRP <a href="#r60">[60]</a>, Grad-CAM <a href="#r65">[65]</a>, SubgraphX <a href="#r48">[48]</a>, and XGNN <a href="#r45">[45]</a>. While several methods provide official implementations, their development environments may vary, thus making fair comparisons difficult. To this end, we implement these methods in the same development environment that the key dependencies of our library are PyTorch 1.6.0 <a href="#r90">[90]</a> and PyTorch Geometric 1.6.1 <a href="#r91">[91]</a>. With such a unified environment, new techniques can be easily and fairly compared with existing methods. Second, we include several datasets for GNN explanation tasks in our library. Note that we not only provide the aforementioned sentiment graph datasets, but also include several commonly used datasets, such as MUTAG, BBBP, BA-shapes, and BA-2Motifs, etc. These datasets include synthetic data, text data, and molecular data, and cover both graph classification tasks and node classification tasks. Hence, we believe that using such datasets can provide a comprehensive study of different GNN explanation methods. In addition, our library provides implementations of different evaluation metrics, including Fidelity+, Fidelity−, and Sparsity. These metrics can be directly applied to evaluate the explanation results obtained from our framework and provide comprehensive evaluations from the model's perspective.</p></div>
+      <div class="zh"><p>我们的库可直接用于复现现有 GNN 解释方法的结果、开发新算法以及对解释结果进行评估。首先，该库包含若干现有方法的实现，例如 GNNExplainer <a href="#r46">[46]</a>、PGExplainer <a href="#r47">[47]</a>、DeepLIFT <a href="#r64">[64]</a>、GNN-LRP <a href="#r60">[60]</a>、Grad-CAM <a href="#r65">[65]</a>、SubgraphX <a href="#r48">[48]</a> 和 XGNN <a href="#r45">[45]</a>。虽然若干方法提供了官方实现，但它们的开发环境可能不同，这使得公平比较变得困难。为此，我们在相同的开发环境中实现这些方法，该库的关键依赖为 PyTorch 1.6.0 <a href="#r90">[90]</a> 和 PyTorch Geometric 1.6.1 <a href="#r91">[91]</a>。借助这样的统一环境，新技术可以轻松且公平地与现有方法比较。其次，该库包含若干用于 GNN 解释任务的数据集。注意，我们不仅提供前述情感图数据集，还包含若干常用数据集，如 MUTAG、BBBP、BA-shapes 和 BA-2Motifs 等。这些数据集涵盖合成数据、文本数据和分子数据，并覆盖图分类与节点分类两类任务。因此，我们认为使用这些数据集可以为不同的 GNN 解释方法提供全面的研究。此外，我们的库提供了不同评估指标（包括 Fidelity+、Fidelity− 和 Sparsity）的实现。这些指标可直接用于评估从我们框架获得的解释结果，并从模型的角度提供全面的评估。</p></div>
+    </div>
+
+    <figure class="blockfig">
+      <div class="figbody">
+        <div class="pipe" style="align-items:stretch; gap:26px;">
+          <div class="pipe-stack" style="min-width:150px;">
+            <span class="pnode root">Datasets<br>数据集</span>
+            <span class="pnode small">BA-shapes · BA-Community</span>
+            <span class="pnode small">Tree-Grids · Tree-Cycle · BA-2Motifs</span>
+            <span class="pnode small">Graph-SST2 · Graph-SST5 · Graph-Twitter</span>
+            <span class="pnode small">MUTAG · Tox21 · BBBP</span>
+          </div>
+          <span class="arrow">→</span>
+          <div class="pipe-stack" style="min-width:150px;">
+            <span class="pnode root">Algorithms<br>算法</span>
+            <span class="pnode small">GNNExplainer · PGExplainer · SubgraphX</span>
+            <span class="pnode small">GNN-LRP · DeepLIFT · Grad-CAM · XGNN</span>
+          </div>
+          <span class="arrow">→</span>
+          <div class="pipe-stack" style="min-width:150px;">
+            <span class="pnode root">Evaluation Metrics<br>评估指标</span>
+            <span class="pnode small">Fidelity+</span>
+            <span class="pnode small">Fidelity−</span>
+            <span class="pnode small">Sparsity</span>
+          </div>
+        </div>
+      </div>
+      <figcaption>Fig. 9. A overview of our open-source library, which includes unified implementations of multiple common baseline methods, commonly used datasets, and three evaluation metrics.<span class="cap-zh">图 9. 我们开源库的概览，包含多种常见基线方法的统一实现、常用数据集以及三个评估指标。</span></figcaption>
+    </figure>
+  </section>
+
+  <!-- ===== 10 结论 ===== -->
+  <section class="block" id="sec-10">
+    <span class="secnum">SECTION 10 · 第 10 节</span>
+    <h2 class="sec">Conclusion<span class="zh">结论</span></h2>
+    <div class="pair">
+      <div class="en"><p>Graph Neural Networks are widely studied recently but the explainability of graph models is still less explored. To investigate the underlying mechanisms of these black-boxes, several explanation methods are proposed to explain graph models, including XGNN, GNNExplainer, etc. These methods explain graph models from different views and motivations, thus lacking a comprehensive study and analysis of these methods. In this work, we provide a systematic and comprehensive survey for these methods. We first propose a novel taxonomy of existing GNN explanation methods and introduce the key idea behind each category. Then we discuss each explanation method in detail, including the methodology, insights, advantages, and drawbacks. In addition, we provide a comprehensive analysis of different explanation methods. Furthermore, we introduce and analyze the commonly employed datasets and metrics for evaluating GNN explanation methods. Last but not the least, we build three graph datasets from text data, which are human-understandable and can be directly used for GNN explanation tasks.</p></div>
+      <div class="zh"><p>图神经网络近年被广泛研究，但图模型的可解释性仍探索较少。为了探究这些黑盒的底层机制，已提出多种解释方法来解释图模型，包括 XGNN、GNNExplainer 等。这些方法从不同的视角和动机解释图模型，因而缺乏对这些方法的综合性研究和分析。在本工作中，我们为这些方法提供了系统而全面的综述。我们首先提出了现有 GNN 解释方法的一种新分类法，并介绍每个类别背后的核心思想。然后我们详细讨论每种解释方法，包括方法论、洞见、优点和缺点。此外，我们对不同的解释方法进行了全面分析。再者，我们介绍并分析了评估 GNN 解释方法常用的数据集和指标。最后但同样重要的是，我们从文本数据构建了三个图数据集，它们易于人类理解，可直接用于 GNN 解释任务。</p></div>
+    </div>
+  </section>
+
+  <!-- ===== 致谢 ===== -->
+  <section class="block" id="sec-ack">
+    <h2 class="sec">Acknowledgments<span class="zh">致谢</span></h2>
+    <div class="pair">
+      <div class="en"><p>This work was supported in part by National Science Foundation grants IIS-1955189 and DBI-2028361.</p></div>
+      <div class="zh"><p>本工作部分受美国国家科学基金会（National Science Foundation）资助，项目编号 IIS-1955189 和 DBI-2028361。</p></div>
+    </div>
+  </section>
+
+  <!-- ===== 参考文献 ===== -->
+  <details class="refs" id="sec-refs" open>
+    <summary><span class="arrow">▶</span>References · 参考文献 <small>（点击收起 · 共 91 条）</small></summary>
+    <div class="refs-list">
+      <ol>
+        <li id="r1">S. Ji, W. Xu, M. Yang, and K. Yu, “3D convolutional neural networks for human action recognition,” IEEE Transactions on Pattern Analysis and Machine Intelligence, vol. 35, no. 1, pp. 221–231, 2013.</li>
+        <li id="r2">K. Simonyan and A. Zisserman, “Very deep convolutional networks for large-scale image recognition,” in International Conference on Learning Representations, 2015.</li>
+        <li id="r3">A. Vaswani, N. Shazeer, N. Parmar, J. Uszkoreit, L. Jones, A. N. Gomez, L. Kaiser, and I. Polosukhin, “Attention is all you need,” in Advances in Neural Information Processing Systems, 2017, pp. 5998–6008.</li>
+        <li id="r4">T. N. Kipf and M. Welling, “Semi-supervised classification with graph convolutional networks,” in International Conference on Learning Representations, 2017.</li>
+        <li id="r5">K. Xu, W. Hu, J. Leskovec, and S. Jegelka, “How powerful are graph neural networks?” in International Conference on Learning Representations, 2019.</li>
+        <li id="r6">Z. Wang, M. Liu, Y. Luo, Z. Xu, Y. Xie, L. Wang, L. Cai, Q. Qi, Z. Yuan, T. Yang, and S. Ji, “Advanced graph and sequence neural networks,” arXiv preprint arXiv:2012.01828, 2021.</li>
+        <li id="r7">H. Mao, L. Xu, N. Duffield, H. Yuan, S. Ji, and B. Mohapatra, “Context-aware deep representation learning for geo-spatiotemporal data,” in 2020 IEEE International Conference on Data Mining (ICDM), IEEE, 2020, pp. 392–401.</li>
+        <li id="r8">H. Yuan, L. Cai, Z. Wang, H. Xu, S. Zhang, and S. Ji, “Computational modeling of cellular structures using conditional deep generative networks,” Bioinformatics, vol. 35, no. 12, pp. 2141–2149, 2019.</li>
+        <li id="r9">K. Maruhashi, M. Todoroki, T. Ohba, K. Goto, Y. Hasegawa, H. Arakoshi, and A. H. Arai, “Learning multi-way relations via tensor decomposition with neural networks,” in Proceedings of the AAAI Conference on Artificial Intelligence, vol. 32, no. 1, 2018.</li>
+        <li id="r10">K. Simonyan, A. Vedaldi, and A. Zisserman, “Deep inside convolutional networks: Visualising image classification models and saliency maps,” arXiv preprint arXiv:1312.6034, 2013.</li>
+        <li id="r11">D. Smilkov, N. Thorat, B. Kim, F. Viégas, and M. Wattenberg, “SmoothGrad: removing noise by adding noise,” arXiv preprint arXiv:1706.03825, 2017.</li>
+        <li id="r12">B. Zhou, A. Khosla, A. Lapedriza, A. Oliva, and A. Torralba, “Learning deep features for discriminative localization,” in Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition, 2016, pp. 2921–2929.</li>
+        <li id="r13">R. R. Selvaraju, M. Cogswell, A. Das, R. Vedantam, D. Parikh, and D. Batra, “Grad-CAM: Visual explanations from deep networks via gradient-based localization,” in 2017 IEEE International Conference on Computer Vision (ICCV), IEEE, 2017, pp. 618–626.</li>
+        <li id="r14">P. Dabkowski and Y. Gal, “Real time image saliency for black box classifiers,” in Advances in Neural Information Processing Systems, 2017, pp. 6967–6976.</li>
+        <li id="r15">H. Yuan, L. Cai, X. Hu, J. Wang, and S. Ji, “Interpreting image classifiers by generating discrete masks,” IEEE Transactions on Pattern Analysis and Machine Intelligence, 2020.</li>
+        <li id="r16">C. Olah, A. Mordvintsev, and L. Schubert, “Feature visualization,” Distill, 2017.</li>
+        <li id="r17">C. Olah, A. Satyanarayan, I. Johnson, S. Carter, L. Schubert, K. Ye, and A. Mordvintsev, “The building blocks of interpretability,” Distill, 2018.</li>
+        <li id="r18">F. Tang, S. K. P. Periasamy, M. A. Althoff, H. Xu, R. Linder, E. D. F. Rang, S. Ji, and X. Hu, “Make explainable fake news detector with visualizations,” in The Web Conference, 2019, pp. 3600–3604.</li>
+        <li id="r19">M. Du, N. Liu, Q. Song, and X. Hu, “Towards explanation of DNN-based prediction with gradient input inspection,” in Proceedings of the 24th ACM SIGKDD International Conference on Knowledge Discovery &amp; Data Mining, 2018, pp. 1338–1367.</li>
+        <li id="r20">Z. Wang, X. Hu, and S. Ji, “CapsNets: Towards interpretable capsule networks for text classification,” arXiv preprint arXiv:2006.00075, 2020.</li>
+        <li id="r21">M. Du, N. Liu, F. Yang, S. Ji, and X. Hu, “On attribution of graph neural networks for predictive tasks via additive decomposition,” in Proceedings of the Web Conference, 2020, pp. 383–393.</li>
+        <li id="r22">H. Yuan, Y. Chen, X. Hu, and S. Ji, “Interpreting deep models for text analysis via optimization and regularization methods,” in AAAI-19: Thirty-Third AAAI Conference on Artificial Intelligence, 2019.</li>
+        <li id="r23">M. Du, N. Liu, and X. Hu, “Techniques for interpretable machine learning,” Communications of the ACM, vol. 63, no. 1, pp. 68–77, 2019.</li>
+        <li id="r24">A. Rai, “Explainable AI: From black box to glass box,” Journal of the Academy of Marketing Science, vol. 48, no. 1, pp. 137–141, 2020.</li>
+        <li id="r25">F. K. Došilović, M. Brčić, and N. Hlupić, “Explainable artificial intelligence: A survey,” in 2018 41st International Convention on Information and Communication Technology, Electronics and Microelectronics (MIPRO), IEEE, 2018, pp. 0210–0215.</li>
+        <li id="r26">C. Molnar, Interpretable Machine Learning, https://christophm.github.io/interpretable-ml-book/</li>
+        <li id="r27">Y. Ma and T. Li, Deep Learning on Graphs. Cambridge University Press, 2020.</li>
+        <li id="r28">W. L. Hamilton, “Graph representation learning,” Synthesis Lectures on Artificial Intelligence and Machine Learning, vol. 14, no. 3, pp. 1–159.</li>
+        <li id="r29">A. Tolmachev, A. Sakai, M. Todoroki, and K. Maruhashi, “Bermuda triangles: GNNs fail to detect simple topological structures,” in ICLR 2021 Workshop on Topological Representation Learning, 2021.</li>
+        <li id="r30">H. Gao and S. Ji, “Graph u-nets,” in Proceedings of the 36th International Conference on Machine Learning, 2019, pp. 2083–2092.</li>
+        <li id="r31">M. Henaff, J. Bruna, and Y. LeCun, “Deep convolutional networks on graph-structured data,” arXiv preprint arXiv:1506.05163, 2015.</li>
+        <li id="r32">M. Liu, H. Gao, and S. Ji, “Towards deep graph neural networks,” in Proceedings of the 26th ACM SIGKDD International Conference on Knowledge Discovery and Data Mining, 2020, pp. 338–348.</li>
+        <li id="r33">M. Zhang, Z. Cui, M. Neumann, and Y. Chen, “An end-to-end deep learning architecture for graph classification,” in AAAI, vol. 18, 2018, pp. 4438–4445.</li>
+        <li id="r34">M. Zhang and Y. Chen, “Link prediction based on graph neural networks,” in Advances in Neural Information Processing Systems, 2018, pp. 5165–5175.</li>
+        <li id="r35">L. Cai and S. Ji, “A multi-scale approach for graph link prediction,” in Proceedings of the AAAI Conference on Artificial Intelligence, vol. 34, no. 04, 2020, pp. 3308–3315.</li>
+        <li id="r36">L. Cai, J. Li, L. Wang, and S. Ji, “Line graph neural networks for link prediction,” IEEE Transactions on Pattern Analysis and Machine Intelligence, 2021.</li>
+        <li id="r37">M. Liu, Z. Wang, and S. Ji, “Non-local graph neural networks,” arXiv preprint arXiv:2005.14612, 2020.</li>
+        <li id="r38">H. Gao, Z. Wang, and S. Ji, “Large-scale learnable graph convolutional networks,” in Proceedings of the 24th ACM SIGKDD International Conference on Knowledge Discovery and Data Mining, 2018, pp. 1416–1424.</li>
+        <li id="r39">P. Veličković, G. Cucurull, A. Casanova, A. Romero, P. Liò, and Y. Bengio, “Graph attention networks,” in International Conference on Learning Representations, 2018.</li>
+        <li id="r40">K. K. Thekumparampil, C. Wang, S. Oh, and L. J. Li, “Attention-based graph neural network for semi-supervised learning,” arXiv preprint arXiv:1803.03735, 2018.</li>
+        <li id="r41">H. Yuan and S. Ji, “StructPool: Structured graph pooling via conditional random fields,” in International Conference on Learning Representations, 2020.</li>
+        <li id="r42">Z. Wang and S. Ji, “Second-order pooling for graph neural networks,” IEEE Transactions on Pattern Analysis and Machine Intelligence, 2020.</li>
+        <li id="r43">H. Gao, Y. Liu, and S. Ji, “Topology-aware graph pooling networks,” IEEE Transactions on Pattern Analysis and Machine Intelligence, 2021.</li>
+        <li id="r44">Y. Xie, S. K. Katariya, X. Tang, E. Huang, N. Rao, K. Subbian, and J. Gao, “Task-agnostic graph explanations,” arXiv preprint arXiv:2203.08322, 2022.</li>
+        <li id="r45">H. Yuan, J. Tang, X. Hu, and S. Ji, “XGNN: Towards model-level graph explanations for graph neural networks,” in KDD ’20, New York, NY, USA: Association for Computing Machinery, 2020, pp. 430–438.</li>
+        <li id="r46">R. Ying, D. Bourgeois, J. You, M. Zitnik, and J. Leskovec, “GNNExplainer: Generating explanations for graph neural networks,” in Advances in Neural Information Processing Systems, 2019, pp. 9244–9255.</li>
+        <li id="r47">D. Luo, W. Cheng, D. Xu, W. Yu, B. Zong, H. Chen, and X. Zhang, “Parameterized explainer for graph neural networks,” in Advances in Neural Information Processing Systems, vol. 33, 2020, pp. 19620–19631.</li>
+        <li id="r48">H. Yuan, H. Yu, J. Wang, K. Li, and S. Ji, “On explainability of graph neural networks via subgraph explorations,” in Proceedings of the 38th International Conference on Machine Learning, 2021, pp. 12241–12252.</li>
+        <li id="r49">C. Rudin, “Stop explaining black box machine learning models for high stakes decisions and use interpretable models instead,” Nature Machine Intelligence, vol. 1, no. 5, pp. 206–215, 2019.</li>
+        <li id="r50">J. Chen, L. Song, M. J. Wainwright, and M. I. Jordan, “Learning to explain: An information-theoretic perspective on model interpretation,” in International Conference on Machine Learning, vol. 80. PMLR, 2018, pp. 882–891.</li>
+        <li id="r51">U. Alon, “Network motifs: theory and experimental approaches,” Nature Reviews Genetics, vol. 8, no. 6, pp. 450–461, 2007.</li>
+        <li id="r52">R. Milo, S. Shen-Orr, S. Itzkovitz, N. Kashtan, D. Chklovskii, and U. Alon, “Network motifs: simple building blocks of complex networks,” Science, vol. 298, no. 5594, pp. 824–827, 2002.</li>
+        <li id="r53">U. Alon, An Introduction to Systems Biology: Design Principles of Biological Circuits. CRC Press, 2019.</li>
+        <li id="r54">F. Baldassarre and H. Azizpour, “Explainability techniques for graph convolutional networks,” in ICML Workshop on Learning and Reasoning with Graph-Structured Representations, 2019.</li>
+        <li id="r55">P. E. Pope, S. Kolouri, M. Rostami, C. E. Martin, and H. Hoffmann, “Explainability methods for graph convolutional neural networks,” in Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition Workshops, 2019, pp. 82–92.</li>
+        <li id="r56">T. Funk, M. Khosla, and A. Anand, “Hard masking for explaining graph neural networks,” 2021. https://openreview.net/forum?id=dDN5RpRA6so</li>
+        <li id="r57">M. S. Schlichtkrull, N. Cao, and I. Titov, “Interpreting graph neural networks for link prediction with edge masking,” in International Conference on Learning Representations, 2021.</li>
+        <li id="r58">X. Wang, Y. Wu, A. Zhang, X. He, and T. S. Chua, “Causal screening to interpret graph neural networks,” 2021. https://openreview.net/forum?id=rsf2w0zrg</li>
+        <li id="r59">R. Schomburg, S. B. He, D. H. Hernandez, and M. P. H. Verhoeven, “Layerwise relevance propagation for explainable graph neural networks,” arXiv preprint arXiv:1909.10919, 2019.</li>
+        <li id="r60">T. Schnake, O. Eberle, J. Lederer, S. Nakajima, T. K. Schütt, K.-R. Müller, and G. Montavon, “Higher-order explanations of graph neural networks via relevant walks,” IEEE Transactions on Pattern Analysis and Machine Intelligence, 2021.</li>
+        <li id="r61">Q. Huang, M. Yamada, Y. Tian, T. Singh, D. Yin, and Y. Chang, “GraphLIME: Local interpretable model explanations for graph neural networks,” arXiv preprint arXiv:2001.06216, 2020.</li>
+        <li id="r62">Y. Zhang, D. Defazio, and A. Ramesh, “ReLex: A model-agnostic relational model explainer,” arXiv preprint arXiv:2006.00305, 2020.</li>
+        <li id="r63">M. Vu and M. T. Thai, “PGM-Explainer: Probabilistic graphical model explanations for graph neural networks,” in Advances in Neural Information Processing Systems, vol. 33, 2020, pp. 12225–12235.</li>
+        <li id="r64">A. Shrikumar, P. Greenside, and A. Kundaje, “Learning important features through propagating activation differences,” in International Conference on Machine Learning, 2017, pp. 3145–3153.</li>
+        <li id="r65">J. Chen, L. Song, M. J. Wainwright, and M. I. Jordan, “Learning to explain: An information-theoretic perspective on model interpretation,” in Proceedings of the 35th International Conference on Machine Learning, vol. 80. PMLR, 2018, pp. 883–892.</li>
+        <li id="r66">R. S. Sutton, D. McAllester, S. Singh, and Y. Mansour, “Policy gradient methods for reinforcement learning with function approximation,” in Advances in Neural Information Processing Systems, vol. 12, 1999, pp. 1057–1063.</li>
+        <li id="r67">E. Jang, S. Gu, and B. Poole, “Categorical reparameterization with Gumbel-Softmax,” in International Conference on Learning Representations, 2016.</li>
+        <li id="r68">C. Louizos, M. Welling, and D. P. Kingma, “Learning sparse neural networks through L0 regularization,” arXiv preprint arXiv:1712.01312, 2017.</li>
+        <li id="r69">D. Silver, J. Schrittwieser, K. Simonyan, I. Antonoglou, A. Huang, A. Guez, T. Hubert, L. Baker, M. Lai, A. Bolton, et al., “Mastering the game of Go without human knowledge,” Nature, vol. 550, no. 7676, pp. 354–359, 2017.</li>
+        <li id="r70">H. W. Kuhn and A. W. Tucker, Contributions to the Theory of Games. Princeton University Press, 1953, vol. 2.</li>
+        <li id="r71">M. Todoriki, M. Shingu, S. Yano, A. Tolmach, T. Komikado, and K. Maruhashi, “Semi-automatic reliable explanations for predicting traffic congestion,” in 2021 IEEE 11th International Conference on Computing and Communications Workshop and Conference, IEEE, 2021, pp. 0311–0320.</li>
+        <li id="r72">M. T. Ribeiro, S. Singh, and C. Guestrin, ““Why should I trust you?” Explaining the predictions of any classifier,” in Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining, 2016, pp. 1135–1144.</li>
+        <li id="r73">M. Yamada, W. Jitkrittum, L. Sigal, E. P. Xing, and M. Sugiyama, “High-dimensional feature selection by feature-wise kernelized Lasso,” Neural Computation, vol. 26, no. 1, pp. 185–207, 2014.</li>
+        <li id="r74">D. Margaritis and S. Thrun, “Bayesian network induction via local neighborhoods,” in Advances in Neural Information Processing Systems, vol. 12, 1999, pp. 505–511.</li>
+        <li id="r75">S. Bach, A. Binder, G. Montavon, F. Klauschen, K.-R. Müller, and W. Samek, “On pixel-wise explanations for non-linear classifier decisions by layer-wise relevance propagation,” PLoS ONE, vol. 10, no. 7, p. e0130140, 2015.</li>
+        <li id="r76">R. Albert and A.-L. Barabási, “Statistical mechanics of complex networks,” Reviews of Modern Physics, vol. 74, no. 1, p. 47, 2002.</li>
+        <li id="r77">R. Socher, A. Perelygin, J. Wu, J. Chuang, C. D. Manning, A. Y. Ng, and C. Potts, “Recursive deep models for semantic compositionality over a sentiment treebank,” in Proceedings of the 2013 Conference on Empirical Methods in Natural Language Processing, 2013, pp. 1631–1642.</li>
+        <li id="r78">L. Dong, F. Wei, C. Tan, D. Tang, M. Zhou, and K. Xu, “Adaptive recursive neural network for target-dependent Twitter sentiment classification,” in Proceedings of the 52nd Annual Meeting of the Association for Computational Linguistics (Short Papers), vol. 2, 2014, pp. 69–74.</li>
+        <li id="r79">M. Gardner, J. Grus, M. Neumann, O. Tafjord, P. Dasigi, N. Liu, M. Peters, M. Schmitz, and L. Zettlemoyer, “AllenNLP: A deep semantic natural language processing platform,” arXiv preprint arXiv:1803.10395, 2018.</li>
+        <li id="r80">J. Devlin, M.-W. Chang, K. Lee, and K. Toutanova, “BERT: Pre-training of deep bidirectional transformers for language understanding,” in NAACL, 2019.</li>
+        <li id="r81">A. K. Debnath, R. L. Lopez de Compadre, G. Debnath, A. J. Shusterman, and C. Hansch, “Structure-activity relationship of mutagenic aromatic and heteroaromatic nitro compounds. Correlation with molecular orbital energies and hydrophobicity,” Journal of Medicinal Chemistry, vol. 34, no. 2, pp. 786–797, 1991.</li>
+        <li id="r82">I. F. Martins, A. L. Teixeira, L. Pinheiro, and A. O. Falcão, “A Bayesian approach to in silico blood-brain barrier penetration modeling,” Journal of Chemical Information and Modeling, vol. 52, no. 6, pp. 1686–1697, 2012.</li>
+        <li id="r83">Z. Wu, B. Ramsundar, E. N. Feinberg, J. Gomes, C. Geniesse, A. S. Pappu, K. Leswing, and V. Pande, “MoleculeNet: A benchmark for molecular machine learning,” Chemical Science, vol. 9, no. 2, pp. 513–530, 2018.</li>
+        <li id="r84">A. Jacovi and Y. Goldberg, “Towards faithfully interpretable NLP systems: How should we define and evaluate faithfulness?” in Proceedings of the 58th Annual Meeting of the Association for Computational Linguistics, Jul. 2020, pp. 4198–4205.</li>
+        <li id="r85">S. Wiegreffe and Y. Pinter, “Attention is not explanation,” in Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing and the 9th International Joint Conference on Natural Language Processing (EMNLP-IJCNLP), Nov. 2019, pp. 11–20.</li>
+        <li id="r86">S. Hooker, D. Erhan, P.-J. Kindermans, and B. Kim, “A benchmark for interpretability methods in deep neural networks,” in Advances in Neural Information Processing Systems, 2019, pp. 9737–9748.</li>
+        <li id="r87">B. Sanchez-Lengeling, J. Wei, B. Lee, E. Reif, P. Wang, W. W. Qian, K. McCloskey, L. Colwell, and A. Wiltschko, “Evaluating attribution for graph neural networks,” Advances in Neural Information Processing Systems, vol. 33, 2020.</li>
+        <li id="r88">L. Holdijk, M. Boon, S. Henckens, and L. de Jong, “A parameterized explainer for graph neural network,” in ML Reproducibility Challenge 2020, 2021. https://openreview.net/forum?id=8jHtrcyv1</li>
+        <li id="r89">M. Liu, Y. Luo, L. Wang, Y. Xie, H. Yuan, S. Gui, H. Yu, Z. Xu, M. Zhang, Y. Liu, K. Yan, H. Liu, C. Fu, B. Oztekin, X. Zhang, and S. Ji, “DIG: A turnkey library for diving into graph deep learning research,” arXiv preprint arXiv:2103.12608, 2021.</li>
+        <li id="r90">A. Paszke, S. Gross, F. Massa, A. Lerer, J. Bradbury, G. Chanan, T. Killeen, Z. Lin, N. Gimelshein, L. Antiga, A. Desmaison, A. Kopf, E. Yang, Z. DeVito, M. Raison, A. Tejani, S. Chilamkurthy, B. Steiner, L. Fang, J. Bai, and S. Chintala, “PyTorch: An open source machine learning framework that accelerates the path from research prototyping to production deployment,” in Advances in Neural Information Processing Systems 32, 2019, pp. 8024–8035.</li>
+        <li id="r91">M. Fey and J. E. Lenssen, “Fast graph representation learning with PyTorch Geometric,” in ICLR Workshop on Representation Learning on Graphs and Manifolds, 2019.</li>
+      </ol>
+    </div>
+  </details>
+
+  <footer class="docfoot">
+    <p><strong>来源 Source：</strong>H. Yuan, H. Yu, S. Gui, and S. Ji, “Explainability in Graph Neural Networks: A Taxonomic Survey,” arXiv:2012.15445v3 [cs.LG], 2022.（预印本，版权归原作者所有）</p>
+    <p><strong>说明 Note：</strong>本页面为论文全文的中英双语对照阅读版。中文译文为辅助学习用途的机器辅助翻译，个别术语以括注英文；表格数据（表 2–表 5）已与 arXiv 原文核对。正文引用编号可点击跳转至文末参考文献。</p>
+  </footer>
+
+</main>
+
+<script>
+(function(){
+  // ===== 显示模式切换 =====
+  var modeBtns = document.querySelectorAll('#seg button');
+  function setMode(m){
+    document.body.dataset.mode = m;
+    for (var i=0;i<modeBtns.length;i++){
+      modeBtns[i].classList.toggle('on', modeBtns[i].dataset.mode === m);
+    }
+    try{ localStorage.setItem('gnn-survey-mode', m); }catch(e){}
+  }
+  for (var i=0;i<modeBtns.length;i++){
+    modeBtns[i].addEventListener('click', function(){
+      setMode(this.dataset.mode);
+    });
+  }
+  var saved = null;
+  try{ saved = localStorage.getItem('gnn-survey-mode'); }catch(e){}
+  if (saved === 'zh' || saved === 'en' || saved === 'both') setMode(saved);
+
+  // ===== 目录抽屉 =====
+  var drawer = document.getElementById('tocdrawer');
+  var mask = document.getElementById('tocmask');
+  var tocbtn = document.getElementById('tocbtn');
+  function openToc(open){
+    drawer.classList.toggle('show', open);
+    mask.classList.toggle('show', open);
+  }
+  tocbtn.addEventListener('click', function(){ openToc(!drawer.classList.contains('show')); });
+  mask.addEventListener('click', function(){ openToc(false); });
+  var tocLinks = drawer.querySelectorAll('a');
+  for (var j=0;j<tocLinks.length;j++){
+    tocLinks[j].addEventListener('click', function(){ openToc(false); });
+  }
+})();
+</script>
+</body>
+</html>
+<!-- （注：内容由AI生成） -->
